@@ -697,6 +697,17 @@ actualizar_planillas_RDS_llenado_completas <- function(ruta_datos){
       incidencias_y_llenado_completo_global <- bind_rows(incidencias_y_llenado_completo_global,incidencias_y_llenado_completo_deldia) %>% 
         arrange(desc(Fecha),Circuito_corto,Posicion)
       
+      responsables_incidencias <- dataframe_responsable_incidencias()
+      
+      incidencias_y_llenado_completo_global <- incidencias_y_llenado_completo_global %>%
+        left_join(responsables_incidencias, by = c("Incidencia" = "descripcion"))
+      
+      # acumulacion_select <- historico_estado_diario %>%
+      #   select(gid, Fecha, Acumulacion)
+      # 
+      # incidencias_y_llenado_completo_global <- incidencias_y_llenado_completo_global %>% 
+      #   left_join(acumulacion_select, by = c("gid", "Fecha"))
+      
     }
     
 
@@ -708,7 +719,7 @@ actualizar_planillas_RDS_llenado_completas <- function(ruta_datos){
     
     ## Filtro los que fueron levantado segun "Llenado".
     # Para obtener y armar el historico completo.
-    solo_levantado <- historico_llenado %>% 
+    solo_levantado <- historico_llenado %>%
       filter(Levantado == "S") %>% 
       select(gid, Fecha, Municipio, Circuito, Circuito_corto, Posicion, Direccion, Turno_levantado,Fecha_hora_pasaje, Id_viaje, Levantado, Porcentaje_llenado, Numero_caja, Condicion) %>% 
       rename(Turno = Turno_levantado) %>% 
@@ -733,7 +744,16 @@ actualizar_planillas_RDS_llenado_completas <- function(ruta_datos){
       arrange(desc(Fecha),Circuito_corto,Posicion) %>% 
       mutate(Condicion = ifelse(Condicion == "", NA, Condicion))  # Reemplaza cadenas vacías por NA)
     
+    responsables_incidencias <- dataframe_responsable_incidencias()
     
+    incidencias_y_llenado_completo_global <- incidencias_y_llenado_completo_global %>%
+      left_join(responsables_incidencias, by = c("Incidencia" = "descripcion"))
+    
+    # acumulacion_select <- historico_estado_diario %>%
+    #   select(gid, Fecha, Acumulacion)
+    # 
+    # incidencias_y_llenado_completo_global <- incidencias_y_llenado_completo_global %>% 
+    #   left_join(acumulacion_select, by = c("gid", "Fecha"))
   }
   
   

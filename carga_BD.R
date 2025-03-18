@@ -33,12 +33,12 @@ rm(actualizar_planillas_RDS,eliminar_ultimo_dia_llenado,funcion_actualizar_incid
 inicio <- as.Date("2025-02-20")
 fin <- max(historico_estado_diario$Fecha)
 fecha_consulta <- fin
-# incidencias_por_gid <- historico_incidencias_por_gid
+# incidencias_por_gid <- historico_completo_llenado_incidencias
 # responsable <- "Pluma"
 # estado_diario <- historico_estado_diario
 
-prueba_grua <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,historico_estado_diario,inicio,fin,"Grua")
-prueba_pluma <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,historico_estado_diario,inicio,fin,"Pluma")
+prueba_grua <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,historico_estado_diario,inicio,fin,"Grua")
+prueba_pluma <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,historico_estado_diario,inicio,fin,"Pluma")
 
 funcion_exportar_incidencias_grua_o_pluma(prueba_grua,"Grua")
 funcion_exportar_incidencias_grua_o_pluma(prueba_pluma,"Pluma")
