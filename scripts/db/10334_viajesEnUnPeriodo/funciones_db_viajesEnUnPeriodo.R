@@ -74,39 +74,60 @@ funcion_actualizar_viajesEnUnPeriodo_10334 <- function(
   
 }
 
-
-probando <- function(){
-
-dia_inf <- as.Date("2025-03-14")
+# fecha_consulta <- as.Date("2025-02-15")
+contenedores_levantados_por_grua_pluma_sin_llenado <- function(fecha_consulta){
 
 Plumas <- c("SIM2378", "SIM2379", "SIM2380" , "SIM2381")
 Gruas <- c("SIM2244", "SIM2225")
 
-prueba <- historico_viajes %>% 
+viajes_del_dia <- historico_viajes %>% 
   filter(Estado == "Finalizado" | Estado == "Cerrado") %>% 
   filter(Lugar_salida == 50) %>% 
   filter(!startsWith(Circuito, "OLC")) %>% 
   filter(Matricula %in% Plumas | Matricula %in% Gruas) %>% 
-  filter(Cantidad_levantada != 0)
+  filter(Cantidad_levantada != 0) %>% 
+  filter(Fecha == fecha_consulta)
 
-## Aca tengo que filtrar
-# 1) los que tienen 1 solo levantado.
-
-solo1levantado <- prueba %>% 
+## este ya esta ok, falta cambiar posicion incial por posicion 
+solo1levantado_deldia <- viajes_del_dia %>% 
   filter(Cantidad_levantada == 1)
 
-# Aca filtro aquellos que tienen más de dos levantados,
-# para poder separarlos y tener los cirpos.
+### busco los que tuvieron más de 1 levantado para separar.
+masde1levantado_deldia <- viajes_del_dia %>% 
+  filter(Cantidad_levantada > 1)
 
-# hay que verificar, que la cantidad levantada sea igual a la de salida.
-masde1levantado <- prueba %>% 
-  filter(Cantidad_levantada == 2)
+masde1levantado_deldia_sin_pendientes <- masde1levantado_deldia %>% 
+  filter(Cant_sin_levantar == 0)
 
+masde1levantado_deldia <- masde1levantado_deldia_sin_pendientes %>%
+  rowwise() %>%
+  mutate(Posicion = list(seq(Posicion_inicial, Posicion_final))) %>%
+  unnest(cols = c(Posicion)) %>%
+  ungroup() %>%
+  select(-Posicion_inicial, -Posicion_final)
 
-asd <- historico_estado_diario %>% 
-  filter(Fecha == "2025-03-14")
+### aca tengo que unir los que tuvieron 1 solo levantado
+### los que tiene más de dos levantados, sin pendientes y ya separados
 
-gruas_plumas
+bloque_1_levantados <- solo1levantado_deldia %>% 
+  rename(Posicion = Posicion_inicial) %>% 
+  select(Fecha,Id_viaje,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
+  mutate(DB = "ViajesEnUnPeriodo")
+
+bloque_2_levantados <- masde1levantado_deldia %>% 
+  select(Fecha,Id_viaje,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
+  mutate(DB = "ViajesEnUnPeriodo")
+
+retorno <- bind_rows(bloque_1_levantados,bloque_2_levantados)
+
+#### TODO
+
+### Falta filtrar los que tenían mas de 1 contenedor a levantar, y les quedó pendiente alguno
+# Cantidad levantada > 1 y cantidad_sinlevantar > 1
+
+# son pocos ver dsp.
+
+return(retorno)
 
 }
 
