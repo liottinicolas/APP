@@ -74,8 +74,10 @@ funcion_actualizar_viajesEnUnPeriodo_10334 <- function(
   
 }
 
+
+
 # fecha_consulta <- as.Date("2025-02-15")
-contenedores_levantados_por_grua_pluma_sin_llenado <- function(fecha_consulta){
+funcion_obtener_contenedores_levantados_por_grua_pluma_sin_llenado <- function(fecha_consulta){
 
 Plumas <- c("SIM2378", "SIM2379", "SIM2380" , "SIM2381")
 Gruas <- c("SIM2244", "SIM2225")
@@ -99,12 +101,19 @@ masde1levantado_deldia <- viajes_del_dia %>%
 masde1levantado_deldia_sin_pendientes <- masde1levantado_deldia %>% 
   filter(Cant_sin_levantar == 0)
 
+
+
 masde1levantado_deldia <- masde1levantado_deldia_sin_pendientes %>%
-  rowwise() %>%
-  mutate(Posicion = list(seq(Posicion_inicial, Posicion_final))) %>%
+  mutate(Posicion = map2(Posicion_inicial, Posicion_final, seq)) %>%
   unnest(cols = c(Posicion)) %>%
-  ungroup() %>%
   select(-Posicion_inicial, -Posicion_final)
+
+# masde1levantado_deldia <- masde1levantado_deldia_sin_pendientes %>%
+#   rowwise() %>%
+#   mutate(Posicion = list(seq(Posicion_inicial, Posicion_final))) %>%
+#   unnest(cols = c(Posicion)) %>%
+#   ungroup() %>%
+#   select(-Posicion_inicial, -Posicion_final)
 
 ### aca tengo que unir los que tuvieron 1 solo levantado
 ### los que tiene más de dos levantados, sin pendientes y ya separados
@@ -130,5 +139,4 @@ retorno <- bind_rows(bloque_1_levantados,bloque_2_levantados)
 return(retorno)
 
 }
-
 

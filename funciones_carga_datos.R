@@ -187,6 +187,7 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     ## Si es la primera vez
     
     fecha_inicio <- as.Date("2025-02-15")
+  
     fecha_fin <- max(historico_llenado$Fecha)
     
     # Lista para almacenar los cambios de cada comparación
@@ -196,16 +197,13 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     for(i in seq.Date(fecha_inicio, fecha_fin, by = "day")) {
   
       fecha <- as.Date(i, origin = "1970-01-01")
-      print(fecha)
       
-      # fecha <- as.Date("2024-02-24")
       informe_del_dia <- funcion_calcular_estado_diario(fecha)
-      
-
+      informe_del_dia_arreglado <- funcion_modificar_informe_diario(informe_del_dia)
+        
       # Almacenar los resultados si existen cambios
       if(nrow(informe_del_dia) > 0) {
         lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
-        print("agregado")
       }
     }
     
@@ -219,7 +217,9 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     estado_diario_global <- estado_diario_global %>% 
       select(gid,Circuito,Municipio,Circuito_corto,Posicion,Estado,Calle,Numero,Observaciones,Fecha,Direccion,Id_viaje,the_geom,Id_motivo_inactiva,Fecha_informe,Acumulacion)
 
-
+  
+    
+    
   }
   
 
@@ -237,7 +237,7 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
 # dia <- fecha
 ## Funcion que calcula para el DÍA, el estado diario de cada contenedor
 # Este o no en mantenimiento, inactivo, etc.
-funcion_calcular_estado_diario <- function(dia){
+funcion_calcular_estado_diario_nuevo <- function(dia){
   
   #### Es el primer dia?
   if(dia == "2025-02-15"){
@@ -371,7 +371,18 @@ funcion_calcular_estado_diario <- function(dia){
       select(-Acumulacion.agg)
     
     
+    
+    
     informe_diario_filtrado <- informe_diario_filtrado %>% 
+      filter(!grepl("^B_0[1-7]$", Circuito_corto)) %>% 
+      mutate(DB = "Llenado")
+    
+ 
+    
+    
+    
+    
+    informe_diario_filtrado <- informe_diario_corregido %>% 
       mutate(Fecha_informe = Fecha +1)
     
   } else {
@@ -902,6 +913,9 @@ actualizar_planillas_RDS_llenado_completas <- function(ruta_datos){
   return(incidencias_y_llenado_completo_global)
   
 }
+
+
+
 
 
 
