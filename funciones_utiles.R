@@ -537,6 +537,19 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
     filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
     ungroup()
   
+  ### Busco los the_geom faltantes.
+  the_geom_totales <- ubicaciones_existentes$ubicaciones_con_thegeom
+  
+  df_retorno <- df_retorno %>%
+    left_join(
+      the_geom_totales %>%
+        select(gid, Direccion, the_geom) %>%
+        rename(the_geom_new = the_geom),
+      by = c("gid", "Direccion")
+    ) %>%
+    mutate(the_geom = coalesce(the_geom, the_geom_new)) %>%
+    select(-the_geom_new)
+  
   return(df_retorno)
   
 }

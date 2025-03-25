@@ -50,6 +50,8 @@ ruta_funciones_estadodiario <- file.path(ruta_proyecto, "scripts/estado_diario/f
 source(ruta_funciones_estadodiario)
 historico_estado_diario <- actualizar_planillas_RDS_estado_diario(ruta_RDS_datos)
 
+### Cargo todas las direcciones con los gids.
+
 
 ########## incidencias
 

@@ -94,6 +94,10 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   }
   
   
+  ubis_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
+  estado_diario_global <- funcion_agregar_the_geom_a_faltantes(estado_diario_global,ubis_existentes$ubicaciones_con_thegeom)
+  
+  
   
   # Guardar el resultado
   saveRDS(estado_diario_global , file = ruta_datos)
@@ -247,7 +251,8 @@ funcion_modificar_informe_diario <- function(df_informediario){
     
     ## Obtengo los contenedores del día, que se deben modificar en el informe diario
     # Que fueron levantados por pluma y grua.
-    contenedores_a_modificar_acumulacion <- funcion_obtener_df_de_contenedores_a_modificar_acumulacion(dia,df_informediario)
+    contenedores_a_modificar_acumulacion <- funcion_obtener_df_de_contenedores_a_modificar_acumulacion(dia,df_informediario) %>% 
+      distinct(gid, Fecha, .keep_all = TRUE)
     
     # Arreglo el informe diario con esos contenedores.
     informe_diario_corregido <- df_informediario %>%
@@ -385,3 +390,207 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
   return(contenedores_a_modificar_acumulacion)
   
 }  
+
+
+
+funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom <- function(){
+  
+  ubicaciones_totales <- historico_ubicaciones %>% 
+    mutate(Direccion = ifelse(
+      is.na(historico_ubicaciones$Numero),
+      historico_ubicaciones$Calle,
+      paste(historico_ubicaciones$Calle, historico_ubicaciones$Numero)))
+  
+  # ubicaciones_totales <- funcion_arreglar_ubicaciones_paragid()
+  
+  ubicaciones_cambios_direccion_unica <- ubicaciones_totales %>%
+    group_by(gid, Direccion) %>%              # Agrupamos por gid y dirección
+    slice_min(order_by = Fecha, n = 1, with_ties = FALSE) %>%  # Nos quedamos con la fila con la fecha mínima
+    ungroup() %>% 
+    select(gid,Fecha,Estado,Municipio,Circuito_corto,Posicion,Calle,Numero,Direccion,Observaciones) %>% 
+    group_by(gid) %>%
+    mutate(n_dir = n_distinct(Direccion)) %>%  # Cuenta las direcciones únicas por gid
+    ungroup() %>% 
+    filter(!(Circuito_corto %in% paste0("B_0", 1:7)))
+  
+  
+  
+  total_gid_ubicaciones_cambios_direccion_unica <- ubicaciones_cambios_direccion_unica %>% 
+    group_by(gid) %>% 
+    summarise(total = n())
+  
+  ## Total gid con direcciones distintas = 10996
+  ## Total gids = 11019
+  
+  #### LLENADO.
+  
+  unique_gids <- historico_llenado %>% 
+    distinct(gid)
+  
+  ## TOTAL 40
+  gid_que_no_estan_ubicaciones <- ubicaciones_cambios_direccion_unica %>% 
+    anti_join(unique_gids, by = "gid")
+  
+  ## TOTAL 11020
+  gid_que_si_estan_ubicaciones <- ubicaciones_cambios_direccion_unica %>% 
+    anti_join(gid_que_no_estan_ubicaciones, by ="gid")
+  
+  
+  direcciones_de_llenado <- historico_llenado %>%
+    group_by(gid, Direccion) %>%              # Agrupamos por gid y dirección
+    slice_min(order_by = Fecha, n = 1, with_ties = FALSE) %>%  # Nos quedamos con la fila con la fecha mínima
+    ungroup() %>% 
+    select(gid,Fecha,Municipio,Circuito_corto,Posicion,Direccion,the_geom)
+  
+  # df_filtrado_llenado <- historico_llenado %>% 
+  #   distinct(gid, Direccion, .keep_all = TRUE)
+  
+  
+  ### Bloque 1 #####
+  
+  ### Aquellos que coincida el gid, direccion, le agrego the_geom.
+  ubicaciones_por_direccion_gid_iguales <- gid_que_si_estan_ubicaciones %>%
+    left_join(
+      direcciones_de_llenado %>% select(gid, Direccion, the_geom),
+      by = c("gid", "Direccion")
+    ) 
+  
+  ## Filtro los que no tienen direccion
+  NA_de_ubicaciones_por_direccion_gid_iguales <- ubicaciones_por_direccion_gid_iguales %>% 
+    filter(is.na(the_geom))
+  
+  bloque_1_direcciones <- ubicaciones_por_direccion_gid_iguales %>% 
+    anti_join(NA_de_ubicaciones_por_direccion_gid_iguales, by="gid")
+  
+  ## los que faltan????
+  
+  
+  
+  ## BLOQUE 2  ############################
+  
+  ### Aquellos que coincida el gid y la calle, le agrego the_geom.
+  
+  ubicaciones_por_calle_y_gid_iguales <- NA_de_ubicaciones_por_direccion_gid_iguales %>%
+    left_join(
+      direcciones_de_llenado %>% select(gid, Direccion, the_geom),
+      by = c("gid", "Calle" = "Direccion")
+    ) %>% 
+    select(-the_geom.x) %>% 
+    rename(the_geom = the_geom.y)
+  
+  NA_ubicaciones_por_calle_y_gid_iguales <- ubicaciones_por_calle_y_gid_iguales %>% 
+    filter(is.na(the_geom))
+  
+  bloque_2_calles <- ubicaciones_por_calle_y_gid_iguales %>% 
+    anti_join(NA_ubicaciones_por_calle_y_gid_iguales, by="gid")
+  
+  ### BLOQUE 3
+  
+  the_geom_ubicaciones <- bind_rows(bloque_1_direcciones,bloque_2_calles)
+  ###################################
+  
+  ##3 Ubicaciones que por gid y direccion, gid y calle no se ubicaron
+  ubicaciones_diferente_direccion_y_calle <- NA_ubicaciones_por_calle_y_gid_iguales 
+  
+  # direcciones que solo tuvieron 1 direccion en la historia.
+  ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion <- ubicaciones_diferente_direccion_y_calle %>% 
+    filter(n_dir == 1) %>% 
+    select(-the_geom)
+  
+  # Filtro solo los gids
+  unique_gids_de_ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion <- ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion %>% 
+    distinct(gid)
+  
+  ### Filtro los que no tienen cambio de direccion, es decir para un solo gid no cambiaron
+  # No los encontré antes por que el gid y la dirección no coincidian (era dificil el nombre)
+  
+  # Filtro esas direcciones sin repetir
+  the_geom_faltantes <- historico_llenado %>% 
+    inner_join(unique_gids_de_ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion , by="gid") %>% 
+    distinct(gid,Direccion,the_geom)
+  
+  ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion_final <- ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion %>% 
+    left_join(
+      the_geom_faltantes %>% select(gid,the_geom), by="gid"
+    )
+  
+  ### 10946
+  the_geom_ubicaciones <- bind_rows(the_geom_ubicaciones,ubicaciones_diferente_direccion_y_calle_sin_cambios_de_direccion_final)
+  ###################################################################################################
+  
+  ubicaciones_diferente_direccion_y_calle_con_cambios_de_direccion <- ubicaciones_diferente_direccion_y_calle %>% 
+    filter(n_dir > 1) %>% 
+    select(-the_geom)
+  
+  
+  return(list(ubicaciones_con_thegeom = the_geom_ubicaciones, ubicaciones_sin_thegeom = ubicaciones_diferente_direccion_y_calle_con_cambios_de_direccion))
+  
+}
+
+
+
+
+
+## Le paso el estado_diario.
+# df_singeom <- historico_estado_diario
+# ubi_completa <- ubicaciones_unicas_completas
+funcion_agregar_the_geom_a_faltantes <- function(df_singeom,ubi_completa){
+  
+  # Forzar la conversión de las columnas a character en ambos data frames
+  df_singeom <- df_singeom %>% 
+    mutate(
+      the_geom = as.character(the_geom),
+      Direccion = as.character(Direccion)
+    )
+  
+  ubi_completa <- ubi_completa %>% 
+    mutate(
+      the_geom = as.character(the_geom),
+      Direccion = as.character(Direccion)
+    )
+  
+  retorno <- df_singeom
+  
+  estado_diario_con_thegeom_historico <- df_singeom %>% 
+    filter(!is.na(the_geom))
+  
+  estado_diario_sin_thegeom <- df_singeom %>% 
+    filter(is.na(the_geom))
+  
+  # Usar nrow() para verificar si hay filas sin the_geom
+  if(nrow(estado_diario_sin_thegeom) > 0){
+    
+    ## Le anexo calle y número para tener la dirección, forzando el tipo character
+    estado_diario_sin_thegeom <- estado_diario_sin_thegeom %>%
+      mutate(Direccion = if_else(
+        is.na(Numero),
+        as.character(Calle),
+        paste0(as.character(Calle), " ", as.character(Numero)),
+        missing = NA_character_
+      ))
+    
+    # Realizamos el left_join y actualizamos the_geom
+    estado_diario_con_thegeom <- estado_diario_sin_thegeom %>%
+      left_join(
+        ubi_completa %>% 
+          select(gid, Direccion, the_geom) %>% 
+          rename(the_geom_asd = the_geom),
+        by = c("gid", "Direccion")
+      ) %>%
+      mutate(the_geom = if_else(
+        !is.na(the_geom_asd),
+        the_geom_asd,
+        as.character(the_geom),
+        missing = NA_character_
+      )) %>%
+      select(-the_geom_asd)
+    
+    retorno <- bind_rows(estado_diario_con_thegeom_historico, estado_diario_con_thegeom)
+  }
+  
+  return(retorno)
+  
+}
+
+
+

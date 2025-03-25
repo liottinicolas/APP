@@ -73,13 +73,13 @@ incidenciasGruaServer <- function(input, output, session) {
     ## Aca filtro inicio y fin
     
     
-    # df_final <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,
-    #                                                          historico_estado_diario,
-    #                                                          inicio,
-    #                                                          fin,
-    #                                                          "Grua")
+     # df_final <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,
+     #                                                          historico_estado_diario,
+     #                                                          inicio,
+     #                                                          fin,
+     #                                                          "Grua")
     
-    df_final <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,
+    df_final <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,
                                                              historico_estado_diario,
                                                              input$fecha_Grua[1],
                                                              input$fecha_Grua[2],
