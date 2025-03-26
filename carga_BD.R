@@ -19,7 +19,7 @@ source("carga_datos.R")
 
 
 ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
-estado_diario_global <- funcion_agregar_the_geom_a_faltantes(estado_diario_global,ubicaciones_existentes$ubicaciones_con_thegeom)
+estado_diario_global <- funcion_agregar_the_geom_a_faltantes(historico_estado_diario,ubicaciones_existentes$ubicaciones_con_thegeom)
 
 
 

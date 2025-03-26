@@ -580,4 +580,23 @@ funcion_exportar_incidencias_grua_o_pluma <- function(df,tipo_incidencia){
   
 }
 
+imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
+  
+  imprimir <- historico_ubicaciones %>% 
+    filter(Fecha == fecha_buscada) %>% 
+    rename(GID = gid,
+           Recorrido = Circuito) %>% 
+    select(GID, Recorrido, Posicion, Estado, Calle, Numero, Observaciones)
+  
+  nombre_archivo <- paste0(format(fecha_buscada, "%Y-%m-%d"), ".csv")
+  
+  
+  
+  write.table(imprimir, 
+              file = nombre_archivo,
+              sep = "\t", 
+              row.names = FALSE, 
+              quote = FALSE, 
+              fileEncoding = "ISO-8859-1")
+}
 
