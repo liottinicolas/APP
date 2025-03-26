@@ -444,7 +444,7 @@ imprimir_repetidos <- function(df){
 
 funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por_gid,fecha_consulta,responsable){
   incidencias_del_dia <- incidencias_por_gid %>% 
-    filter(Fecha_incidencia == fecha_consulta) %>% 
+    filter(Fecha == fecha_consulta) %>% 
     filter(Responsable == responsable) 
   
 }
@@ -452,7 +452,7 @@ funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por
 # inicio <- as.Date("2025-02-20")
 # fin <- max(historico_estado_diario$Fecha)
 # fecha_consulta <- fin
-# incidencias_por_gid <- historico_incidencias_por_gid
+# incidencias_por_gid <- historico_completo_llenado_incidencias
 # responsable <- "Grua"
 # estado_diario <- historico_estado_diario
 
@@ -461,36 +461,51 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
   # Calculo las incidencias que se generaron el día anterior
   incidencias_del_dia <- funcion_imprimir_incidencias_del_dia_por_responsable(incidencias_por_gid,fin,responsable)
   
+  ## calculo del día, los días de acumulación.
+  acumulacion_select <- estado_diario %>%
+    select(gid, Fecha, Acumulacion,Estado)
+
+  incidencias_del_dia <- incidencias_del_dia %>%
+    left_join(acumulacion_select, by = c("gid", "Fecha")) %>% 
+    rename(Fecha_incidencia = Fecha)
+  
   # Elimino las que ya fueron solucionadas
   incidencias_del_dia_sinsolucion <- incidencias_del_dia %>% 
     filter(Acumulacion > 1)
   
   # Calculo todas las indicencias anteriores al día anterior
   incidencias_historico_sin_ultimo_dia <- incidencias_por_gid %>% 
-    filter(Fecha_incidencia >= inicio) %>% 
-    filter(Fecha_incidencia < fin) %>% 
-    filter(Responsable == responsable)
+    filter(Fecha >= inicio) %>% 
+    filter(Fecha < fin) %>% 
+    filter(Responsable == responsable) %>% 
+    rename(Fecha_incidencia = Fecha)
   
   # Hallo el valor de acumulacion al dia de hoy.
   informe_del_dia <- estado_diario %>% 
     filter(Fecha == fin)
-  
-  # Le agrego a las incidencias historicas, el día de acumulacion a la fecha de la consulta.
+
+    # Le agrego a las incidencias historicas, el día de acumulacion a la fecha de la consulta.
   # y al día de hoy en otra columna.
   incidencias_actualizadas_sin_ultimo_dia <- incidencias_historico_sin_ultimo_dia %>%
     left_join(
       informe_del_dia %>% 
-        select(gid, Fecha, Acumulacion,the_geom) %>%
+        select(gid, Fecha, Acumulacion,the_geom,Estado) %>%
         rename(fecha_informe_dia_actual = Fecha,
                Acumulacion_dia_actual = Acumulacion),
       by = "gid"
     ) %>% 
-    ## Ssaco los sobrepesos del día de hoy, que los anexo dsp
-    # filter(Fecha_incidencia != fecha_consulta) %>% 
-    mutate(fecha_informe_dia_actual = fecha_informe_dia_actual+1) %>% 
-    rename(Acumulacion_dia_incidencia = Acumulacion) %>% 
-    mutate(Diferencia_dias = fecha_informe_dia_actual - Fecha_informe) %>% 
-    mutate(Diferencias_dias_de_acumulacion = Acumulacion_dia_actual - Acumulacion_dia_incidencia)
+    left_join(
+      estado_diario %>% 
+        select(gid, Fecha, Acumulacion) %>%
+        rename(fecha_informe_dia_incidencia = Fecha,
+               Acumulacion_dia_incidencia = Acumulacion),
+      by = c("gid" = "gid", "Fecha_incidencia" = "fecha_informe_dia_incidencia")
+    ) %>% 
+    # rename(Acumulacion_dia_incidencia = Acumulacion_dia_actual) %>% 
+    mutate(Diferencia_dias = fecha_informe_dia_actual - Fecha_incidencia) %>% 
+    mutate(Diferencias_dias_de_acumulacion = Acumulacion_dia_actual - Acumulacion_dia_incidencia) %>% 
+    filter(Acumulacion_dia_incidencia > 1)
+  
   
   ## Filtro aquellas incidencias que no fueron solucionados
   # Resto las fechas y los dias de acumulacion, si da igual es porque no paso nada
@@ -521,6 +536,19 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
     group_by(gid) %>%
     filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
     ungroup()
+  
+  ### Busco los the_geom faltantes.
+  the_geom_totales <- ubicaciones_existentes$ubicaciones_con_thegeom
+  
+  df_retorno <- df_retorno %>%
+    left_join(
+      the_geom_totales %>%
+        select(gid, Direccion, the_geom) %>%
+        rename(the_geom_new = the_geom),
+      by = c("gid", "Direccion")
+    ) %>%
+    mutate(the_geom = coalesce(the_geom, the_geom_new)) %>%
+    select(-the_geom_new)
   
   return(df_retorno)
   
@@ -552,104 +580,23 @@ funcion_exportar_incidencias_grua_o_pluma <- function(df,tipo_incidencia){
   
 }
 
-
-
-
-
-# inicio <- as.Date("2025-02-20")
-# fin <- max(historico_estado_diario$Fecha)
-# fecha_consulta <- fin
-# incidencias_por_gid <- historico_incidencias_por_gid
-# responsable <- "Grua"
-# estado_diario <- historico_estado_diario
-
-
-
-funcion_mostrar_responsables_por_incidencias_PROBANDOMODIFICACIONES <- function(incidencias_por_gid,estado_diario,inicio,fin,responsable){
+imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
   
-  # Calculo las incidencias que se generaron el día anterior
-  incidencias_del_dia <- funcion_imprimir_incidencias_del_dia_por_responsable(incidencias_por_gid,fin,responsable)
+  imprimir <- historico_ubicaciones %>% 
+    filter(Fecha == fecha_buscada) %>% 
+    rename(GID = gid,
+           Recorrido = Circuito) %>% 
+    select(GID, Recorrido, Posicion, Estado, Calle, Numero, Observaciones)
   
-  # Elimino las que ya fueron solucionadas
-  incidencias_del_dia_sinsolucion <- incidencias_del_dia %>% 
-    filter(Acumulacion > 1)
-  
-  # Calculo todas las indicencias anteriores al día anterior
-  incidencias_historico_sin_ultimo_dia <- incidencias_por_gid %>% 
-    filter(Fecha_incidencia >= inicio) %>% 
-    filter(Fecha_incidencia < fin) %>% 
-    filter(Responsable == responsable)
-  
-  # Hallo el valor de acumulacion al dia de hoy.
-  informe_del_dia <- estado_diario %>% 
-    filter(Fecha == fin)
-  
-  # Le agrego a las incidencias historicas, el día de acumulacion a la fecha de la consulta.
-  # y al día de hoy en otra columna.
-  incidencias_actualizadas_sin_ultimo_dia <- incidencias_historico_sin_ultimo_dia %>%
-    left_join(
-      informe_del_dia %>% 
-        select(gid, Fecha, Acumulacion,the_geom) %>%
-        rename(fecha_informe_dia_actual = Fecha,
-               Acumulacion_dia_actual = Acumulacion),
-      by = "gid"
-    ) %>% 
-    ## Ssaco los sobrepesos del día de hoy, que los anexo dsp
-    # filter(Fecha_incidencia != fecha_consulta) %>% 
-    mutate(fecha_informe_dia_actual = fecha_informe_dia_actual+1) %>% 
-    rename(Acumulacion_dia_incidencia = Acumulacion) %>% 
-    mutate(Diferencia_dias = fecha_informe_dia_actual - Fecha_informe) %>% 
-    mutate(Diferencias_dias_de_acumulacion = Acumulacion_dia_actual - Acumulacion_dia_incidencia)
-  
-  
-  informe_del_dia_anterior <- estado_diario %>% 
-    filter(Fecha == fin-1)
-  
-  incidencias_actualizadas_sin_ultimo_dia <- incidencias_historico_sin_ultimo_dia %>%
-    left_join(
-      informe_del_dia_anterior %>% 
-        select(gid, Fecha_informe, Acumulacion) %>%
-        rename(fecha_informe_dia_anterior = Fecha_informe,
-               Acumulacion_dia_anterior = Acumulacion),
-      by = "gid"
-    )  
-    ## Ssaco los sobrepesos del día de hoy, que los anexo dsp
-    # filter(Fecha_incidencia != fecha_consulta) %>% 
-
+  nombre_archivo <- paste0(format(fecha_buscada, "%Y-%m-%d"), ".csv")
   
   
   
-  
-  
-  ## Filtro aquellas incidencias que no fueron solucionados
-  # Resto las fechas y los dias de acumulacion, si da igual es porque no paso nada
-  incidencias_actualizadas_sin_ultimo_dia <- incidencias_actualizadas_sin_ultimo_dia %>%
-    filter(as.numeric(Diferencia_dias, units = "days") == Diferencias_dias_de_acumulacion) %>% 
-    ### Filtro las que están en mantenimiento
-    filter(is.na(Estado))
-  
-  incidencias_actualizadas_sin_ultimo_dia <- incidencias_actualizadas_sin_ultimo_dia %>% 
-    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual,the_geom) %>% 
-    rename(Acumulacion = Acumulacion_dia_actual)
-  
-  incidencias_del_dia_sinsolucion <- incidencias_del_dia_sinsolucion %>% 
-    mutate(Diferencia_dias = as.difftime(0, units = "days")) %>% 
-    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion)
-  
-  incidencias_completas <- bind_rows(incidencias_actualizadas_sin_ultimo_dia,incidencias_del_dia_sinsolucion) %>% 
-    mutate(Diferencia_dias = Diferencia_dias + 1) %>% 
-    arrange(desc(Diferencia_dias),Circuito_corto)
-  
-  df_sin_duplicados <- incidencias_completas %>%
-    group_by(gid, Fecha_incidencia) %>%
-    filter(n() == 1) %>%  # Sólo se conservan las combinaciones que aparecen una única vez
-    ungroup()
-  
-  df_retorno <- df_sin_duplicados %>%
-    group_by(gid) %>%
-    filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
-    ungroup()
-  
-  return(df_retorno)
-  
+  write.table(imprimir, 
+              file = nombre_archivo,
+              sep = "\t", 
+              row.names = FALSE, 
+              quote = FALSE, 
+              fileEncoding = "ISO-8859-1")
 }
+

@@ -48,15 +48,6 @@ funcion_actualizar_ubicaciones_10393 <- function(
   
   ubicaciones_nuevo <- arreglar_direcciones(ubicaciones_nuevo)
   
-  ## Tengo que arreglar el gid 180015 - MILAN 3600 que por alguna razón sale mal.
-  # ubicaciones_nuevo <- ubicaciones_nuevo %>%
-  #   mutate(
-  #     cond = is.na(Calle) & Observaciones == "MILAN 3600" & gid == "180015",
-  #     Calle = if_else(cond, "MILAN", Calle),
-  #     Numero = if_else(cond, 3600, Numero)
-  #   ) %>%
-  #   select(-cond)
-  
   ## Borro los duplicados
   ubicaciones_nuevo <- ubicaciones_nuevo %>% 
     distinct() 
@@ -268,16 +259,31 @@ funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicacion
   
 }
 
+funcion_eliminar_asteriscos <- function(df){
+  
+  df <- df %>%
+    separate(Calle, 
+             into = c("Calle", "Observaciones"), 
+             sep = " *\\(\\*\\) *", 
+             extra = "merge", 
+             fill = "right")
+  
+  return(df)
+  
+}
+
 
 arreglar_direcciones <- function(df){
   
-  ubicaciones_arregladas <- df %>%
-    mutate(
-      Calle = if_else(gid %in% c(180848, 143673) & Fecha == "2025-02-27", "URUGUAYANA", Calle),
-      Observaciones = if_else(gid %in% c(180848, 143673) & Fecha == "2025-02-27",
-                              "(*) RE-UBICAR OPTIMIZAR RUTA. EN 3520",
-                              Observaciones)
-    )
+  # ubicaciones_arregladas <- df %>%
+  #   mutate(
+  #     Calle = if_else(gid %in% c(180848, 143673) & Fecha == "2025-02-27", "URUGUAYANA", Calle),
+  #     Observaciones = if_else(gid %in% c(180848, 143673) & Fecha == "2025-02-27",
+  #                             "(*) RE-UBICAR OPTIMIZAR RUTA. EN 3520",
+  #                             Observaciones)
+  #   )
+  
+  ubicaciones_arregladas <- funcion_eliminar_asteriscos(df)
   
   ubicaciones_arregladas <- ubicaciones_arregladas %>%
     mutate(
@@ -316,11 +322,18 @@ arreglar_direcciones <- function(df){
     ) %>%
     select(-num_desconocido)
   
-      
-      
-      
   
-  
-  
+  ubicaciones_arregladas <- ubicaciones_arregladas %>% 
+    mutate(Calle = if_else(gid == 180871 & Fecha == as.Date("2025-03-18"), 
+                           "JUAN RODRIGUEZ CORREA", 
+                           Calle)) %>% 
+    mutate(Calle = if_else(gid == 117165 & Fecha == as.Date("2025-03-13"), 
+                           "ARQ JUAN G GIURIA", 
+                           Calle))
+
 
 }
+
+
+
+
