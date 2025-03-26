@@ -489,12 +489,12 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
   incidencias_actualizadas_sin_ultimo_dia <- incidencias_historico_sin_ultimo_dia %>%
     left_join(
       informe_del_dia %>% 
-        select(gid, Fecha, Acumulacion,the_geom,Estado) %>%
+        select(gid, Fecha, Acumulacion,Estado) %>%
         rename(fecha_informe_dia_actual = Fecha,
                Acumulacion_dia_actual = Acumulacion),
       by = "gid"
     ) %>% 
-    left_join(
+    left_join(relationship = "many-to-many",
       estado_diario %>% 
         select(gid, Fecha, Acumulacion) %>%
         rename(fecha_informe_dia_incidencia = Fecha,
@@ -512,12 +512,12 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
   incidencias_actualizadas_sin_ultimo_dia <- incidencias_actualizadas_sin_ultimo_dia %>%
     filter(as.numeric(Diferencia_dias, units = "days") == Diferencias_dias_de_acumulacion) %>% 
     ### Filtro las que están en mantenimiento
-    filter(is.na(Estado))
-  
-  
-  incidencias_actualizadas_sin_ultimo_dia <- incidencias_actualizadas_sin_ultimo_dia %>% 
-    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual,the_geom) %>% 
+    filter(is.na(Estado)) %>% 
+    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual) %>% 
     rename(Acumulacion = Acumulacion_dia_actual)
+  
+  # incidencias_actualizadas_sin_ultimo_dia <- incidencias_final %>% 
+
   
   incidencias_del_dia_sinsolucion <- incidencias_del_dia_sinsolucion %>% 
     mutate(Diferencia_dias = as.difftime(0, units = "days")) %>% 
@@ -536,21 +536,43 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
     group_by(gid) %>%
     filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
     ungroup()
+  # 
+  # ### Busco los the_geom faltantes.
+  # the_geom_totales <- ubicaciones_existentes$ubicaciones_con_thegeom
+  # 
+  # df_retorno <- df_retorno %>%
+  #   left_join(
+  #     the_geom_totales %>%
+  #       select(gid, Direccion, the_geom) %>%
+  #       rename(the_geom_new = the_geom),
+  #     by = c("gid", "Direccion")
+  #   ) %>%
+  #   mutate(the_geom = coalesce(the_geom, the_geom_new)) %>%
+  #   select(-the_geom_new)
+  # 
   
-  ### Busco los the_geom faltantes.
-  the_geom_totales <- ubicaciones_existentes$ubicaciones_con_thegeom
+  #### TRATANDO DE AGREGAR THEGEOM
   
-  df_retorno <- df_retorno %>%
-    left_join(
-      the_geom_totales %>%
-        select(gid, Direccion, the_geom) %>%
-        rename(the_geom_new = the_geom),
-      by = c("gid", "Direccion")
-    ) %>%
-    mutate(the_geom = coalesce(the_geom, the_geom_new)) %>%
-    select(-the_geom_new)
+  buscar_ubis <- ubicaciones_existentes$ubicaciones_con_thegeom
   
-  return(df_retorno)
+  # Unir y calcular diferencia de días entre fechas
+  unido <- df_retorno %>%
+    left_join(buscar_ubis, by = "gid") %>%
+    mutate(dif_dias = abs(as.numeric(Fecha - Fecha_incidencia)))
+  
+  # Seleccionar el the_geom con menor diferencia de fecha por gid + Fecha_incidencia
+  the_geom_mas_cercano <- unido %>%
+    group_by(gid, Fecha_incidencia) %>%
+    slice_min(order_by = dif_dias, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(gid, Fecha_incidencia, the_geom)
+  
+  # Unir el resultado a df_retorno
+  df_retorno_final <- df_retorno %>%
+    left_join(the_geom_mas_cercano, by = c("gid", "Fecha_incidencia"))
+  
+  
+  return(df_retorno_final)
   
 }
 
