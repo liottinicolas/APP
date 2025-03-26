@@ -12,15 +12,6 @@ rm(ruta_carpeta_archivos,ruta_funciones,ruta_RDS_datos,ruta_RDS_planillas_proces
 
 
 
-# duplicados <- historico_llenado %>%
-#   group_by(Fecha, gid, Id_viaje) %>%
-#   filter(n() > 1) %>%
-#   ungroup() %>% 
-#   arrange(gid,Fecha)
-
-# prueba <- funcion_the_geom_esta_vacio(historico_ubicaciones_cambio_de_estado)
-
-
 ## ubicaciones
 ## Cargo el db de ubcaciones sin modificaciones
 
@@ -55,7 +46,11 @@ historico_viajes <- actualizar_planillas_RDS(ruta_proyecto,ruta_funciones,ruta_c
 ##### informe diario actualización.
 
 ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
+ruta_funciones_estadodiario <- file.path(ruta_proyecto, "scripts/estado_diario/funciones_cargadatos_estado_diario.R")
+source(ruta_funciones_estadodiario)
 historico_estado_diario <- actualizar_planillas_RDS_estado_diario(ruta_RDS_datos)
+
+### Cargo todas las direcciones con los gids.
 
 
 ########## incidencias
@@ -75,4 +70,8 @@ historico_incidencias_por_gid <- actualizar_planillas_RDS_incidencias_por_gid(ru
 # ##### llenado con incidencias
 ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/historico_llenado_completo.rds")
 historico_completo_llenado_incidencias <- actualizar_planillas_RDS_llenado_completas(ruta_RDS_llenado_completo)
+
+
+
+
 

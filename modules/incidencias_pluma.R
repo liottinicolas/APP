@@ -76,7 +76,7 @@ incidenciasPlumaServer <- function(input, output, session) {
     
     req(input$fecha_pluma)
     
-    df_final <- funcion_mostrar_responsables_por_incidencias(historico_incidencias_por_gid,
+    df_final <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,
                                                              historico_estado_diario,
                                                              input$fecha_pluma[1],
                                                              input$fecha_pluma[2],

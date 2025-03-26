@@ -55,7 +55,6 @@ if (!require("tools")) install.packages("tools")
 library(tools)
 
 
-
 # fecha_inicio <- make_date(year = 2024, month = 10, day = 10)
 
 

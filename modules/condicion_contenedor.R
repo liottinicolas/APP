@@ -70,7 +70,7 @@ condicionContenedorServer <- function(input, output, session) {
   
   output$tabla_condicion_contenedores <- renderDT({
     filtrado_reactivo_condicion_contenedor() %>% 
-      select(Fecha, gid, Municipio, Circuito_corto, Posicion, Direccion, Turno_levantado,Porcentaje_llenado,Condicion) %>% 
+      select(Fecha, gid, Municipio, Circuito_corto, Posicion, Direccion, Turno,Porcentaje_llenado,Condicion) %>% 
       # rename(Dia = Dia_incidencia,
       #        Circuito = Circuito_corto) %>% 
       datatable(
