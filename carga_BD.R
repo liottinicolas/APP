@@ -51,35 +51,8 @@ funcion_exportar_incidencias_grua_o_pluma(prueba_grua,"Grua")
 funcion_exportar_incidencias_grua_o_pluma(prueba_pluma,"Pluma")
 
 
-# 
-# funcion_arreglar_ubicaciones_paragid <- function(){
-#   
-#   df <- historico_ubicaciones
-#   
-#   #### ACA DIRECCIONES QUE VEO QUE HAY QUE ARREGLAR, LAS CORRIJO
-#   
-#   # Actualizar la columna "Calle" con mutate y if_else
-#   historico_ubicacionparthegeom <- df %>% 
-#     mutate(Calle = if_else(gid == 180871 & Fecha == as.Date("2025-03-18"), 
-#                            "JUAN RODRIGUEZ CORREA", 
-#                            Calle)) %>% 
-#     mutate(Calle = if_else(gid == 117165 & Fecha == as.Date("2025-03-13"), 
-#                            "ARQ JUAN G GIURIA", 
-#                            Calle))
-#   
-#   ##############################################################  
-#   
-#   ubicaciones_totales <- historico_ubicacionparthegeom %>% 
-#     mutate(Direccion = ifelse(
-#       is.na(historico_ubicacionparthegeom$Numero),
-#       historico_ubicacionparthegeom$Calle,
-#       paste(historico_ubicacionparthegeom$Calle, historico_ubicacionparthegeom$Numero)))
-#   
-#   return(ubicaciones_totales)
-# }
 
-
-
+############## para probar ####################
 
 
 
