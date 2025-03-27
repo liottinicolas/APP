@@ -513,7 +513,7 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
     filter(as.numeric(Diferencia_dias, units = "days") == Diferencias_dias_de_acumulacion) %>% 
     ### Filtro las que están en mantenimiento
     filter(is.na(Estado)) %>% 
-    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual) %>% 
+    select(Fecha_incidencia,Diferencia_dias,gid,Estado,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual) %>% 
     rename(Acumulacion = Acumulacion_dia_actual)
   
   # incidencias_actualizadas_sin_ultimo_dia <- incidencias_final %>% 
@@ -521,11 +521,12 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
   
   incidencias_del_dia_sinsolucion <- incidencias_del_dia_sinsolucion %>% 
     mutate(Diferencia_dias = as.difftime(0, units = "days")) %>% 
-    select(Fecha_incidencia,Diferencia_dias,gid,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion)
+    select(Fecha_incidencia,Diferencia_dias,gid,Estado,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion)
   
   incidencias_completas <- bind_rows(incidencias_actualizadas_sin_ultimo_dia,incidencias_del_dia_sinsolucion) %>% 
     mutate(Diferencia_dias = Diferencia_dias + 1) %>% 
-    arrange(desc(Diferencia_dias),Circuito_corto)
+    arrange(desc(Diferencia_dias),Circuito_corto) %>% 
+    filter(is.na(Estado))
   
   df_sin_duplicados <- incidencias_completas %>%
     group_by(gid, Fecha_incidencia) %>%
