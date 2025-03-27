@@ -72,9 +72,12 @@ busquedaGidServer <- function(input, output, session) {
     historico_completo_llenado_incidencias %>%
       filter(gid == input$txt_busqueda_gid) %>%
       filter(Fecha >= input$fecha_busqueda_gid[1]) %>%
-      filter(Fecha <= input$fecha_busqueda_gid[2])
+      filter(Fecha <= input$fecha_busqueda_gid[2]) %>% 
+      arrange(desc(Fecha),desc(Turno))
   })
 
+    
+  
   # # Mostrar los datos filtrados en la tabla
   output$tabla_historico_contenedor <- renderDT({
     data <- llenado()  # Asigna el resultado del eventReactive a `data`

@@ -592,5 +592,21 @@ funcion_agregar_the_geom_a_faltantes <- function(df_singeom,ubi_completa){
   
 }
 
+## no se usa aun
+
+arreglar_informediario_viejo <- function(){
+  ruta <- file.path(ruta_proyecto, "scripts/estado_diario/estado_diario_versionanterior.rds")
+  anterior <- read_rds(ruta) 
+  
+  historico_estadodiario_versionanterior <- anterior %>% 
+    select(gid,Nomenclatura,Municipio,Circuito,Posicion,Direccion,the_geom,Acumulacion) %>% 
+    rename(
+      Circuito_corto = Circuito,
+      Circuito = Nomenclatura)
+  
+  
+  
+  
+}
 
 

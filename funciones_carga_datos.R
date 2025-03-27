@@ -829,7 +829,7 @@ actualizar_planillas_RDS_llenado_completas <- function(ruta_datos){
       
       solo_incidencias <- historico_incidencias_por_gid %>% 
         select(gid, Fecha_incidencia, Municipio, Circuito, Circuito_corto, 
-               Posicion, Direccion, Observaciones, Turno, Id_viaje, Incidencia, Condicion, DB) %>% 
+               Posicion, Direccion,Observaciones, Turno, Id_viaje, Incidencia, Condicion, DB) %>% 
         rename(Fecha = Fecha_incidencia) %>% 
         mutate(
           Turno = case_when(
