@@ -1,0 +1,18 @@
+[2025-04-01 09:59:15] [INFO] Iniciando script carga_BD.R en modo desarrollo
+[2025-04-01 09:59:15] [INFO] Archivo cargado con éxito: global.R
+[2025-04-01 09:59:15] [INFO] Archivo cargado con éxito: funciones_carga_datos.R
+[2025-04-01 09:59:15] [INFO] Archivo cargado con éxito: funciones_utiles.R
+[2025-04-01 09:59:15] [INFO] Archivo cargado con éxito: funciones_para_web.R
+[2025-04-01 09:59:37] [INFO] Archivo cargado con éxito: carga_datos.R
+[2025-04-01 09:59:37] [INFO] Procesando ubicaciones y estado diario
+[2025-04-01 09:59:43] [INFO] Última fecha de registro: 2025-03-31 - Fecha informe diario: 2025-04-01
+[2025-04-01 09:59:43] [INFO] Iniciando análisis de datos
+[2025-04-01 09:59:43] [INFO] Procesando responsabilidades para Grua
+[2025-04-01 09:59:44] [INFO] Exportación completada para Grua
+[2025-04-01 09:59:44] [INFO] Procesando responsabilidades para Pluma
+[2025-04-01 09:59:44] [INFO] Exportación completada para Pluma
+[2025-04-01 09:59:44] [INFO] Realizando análisis adicionales
+[2025-04-01 09:59:45] [INFO] Ejecutando ejemplos de desarrollo
+[2025-04-01 09:59:45] [INFO] Exportando datos para GID: 134160
+[2025-04-01 09:59:45] [INFO] Archivo generado: ./salida//datos_gid_134160.xlsx
+[2025-04-01 09:59:45] [INFO] Script carga_BD.R ejecutado correctamente en modo: desarrollo
