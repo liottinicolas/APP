@@ -1,3 +1,6 @@
+# nolint start: line_length_linter, object_name_linter
+
+
 library(shiny)
 library(shinydashboard)
 library(leaflet)
@@ -37,7 +40,7 @@ ui <- dashboardPage(
                menuSubItem("Mantenimiento", tabName = "incidencias_mantenimiento", icon = icon("wrench")),
                menuSubItem("Operativa", tabName = "incidencias_operativa", icon = icon("road"))
                ),
-      menuItem("Historicos incidencias", tabName = "historico_incidencias", icon = icon("tasks")),
+      #menuItem("Historicos incidencias", tabName = "historico_incidencias", icon = icon("tasks")),
       menuItem("Condicion contenedor", tabName = "condicion_contenedor", icon = icon("signal"))
     )
   ),
@@ -73,3 +76,6 @@ server <- function(input, output, session) {
 }
   
 shinyApp(ui, server)
+
+
+# nolint end

@@ -1,5 +1,11 @@
-## Función auxiliar para establecer rutas y cargar datos
-cargar_datos <- function(modulo, nombre_archivo_funcion = NULL, nombre_archivo_historico = NULL) {
+# nolint start: line_length_linter, object_name_linter
+#
+
+# Función auxiliar para establecer rutas y cargar datos
+cargar_datos <- function(
+  modulo,
+  nombre_archivo_funcion = NULL, 
+ nombre_archivo_historico = NULL) {
   # Determinar nombres de archivos basados en el módulo
   if (is.null(nombre_archivo_funcion)) {
     # Usar el nombre original exacto de cada módulo
@@ -26,7 +32,7 @@ cargar_datos <- function(modulo, nombre_archivo_funcion = NULL, nombre_archivo_h
       nombre_archivo_historico <- "llenado"
     } else if (modulo == "10338_incidencias") {
       nombre_archivo_historico <- "incidencias"
-    } else {
+    } else {  
       nombre_archivo_historico <- modulo
     }
   }
@@ -114,6 +120,9 @@ historico_incidencias <- actualizar_planillas_RDS(
   rutas_incidencias$ruta_carpeta_archivos, 
   rutas_incidencias$ruta_RDS_datos
 )
+historico_incidencias_completas <- actualizar_planillas_RDS_llenado_completas(
+  rutas_incidencias$ruta_RDS_datos
+)
 
 ## 6. Actualización de incidencias por GID
 ruta_RDS_incidencias <- file.path(ruta_proyecto, "scripts/incidencias_por_gid/historico_incidencias_por_gid.rds")
@@ -124,6 +133,4 @@ ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/
 historico_completo_llenado_incidencias <- actualizar_planillas_RDS_llenado_completas(ruta_RDS_llenado_completo)
 
 
-
-
-
+# nolint end

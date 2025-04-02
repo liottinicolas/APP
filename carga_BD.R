@@ -1,3 +1,6 @@
+# nolint start: line_length_linter, object_name_linter
+
+
 ######################## CARGA DIRECTA DE LAS CONSULTAS EXPORTABLES ################################
 
 ########################
@@ -281,3 +284,10 @@ if (CONFIGURACION$MODO == "desarrollo") {
 # Mensaje de confirmación de carga completa
 escribir_log("INFO", paste("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO))
 cat("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO, "\n")
+
+
+# nolint end
+
+asd <- estado_diario_global %>% 
+  filter(Fecha == "2025-03-31") %>% 
+  filter(Acumulacion == 1)
