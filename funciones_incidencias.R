@@ -1,3 +1,6 @@
+# nolint start: line_length_linter, object_name_linter
+
+
 # Funciones para manejo de incidencias y responsables
 
 #' Carga las opciones de incidencias para un responsable específico
@@ -125,3 +128,6 @@ cargar_opciones_condiciones <- function(){
 # Variables globales para opciones de incidencias
 opciones <- cargar_opciones_responsable("Pluma")
 opciones_filtradas_grua <- opciones[opciones != "Contenedor Volcado"] 
+
+
+# nolint end

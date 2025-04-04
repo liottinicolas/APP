@@ -1,3 +1,5 @@
+# nolint start: line_length_linter, object_name_linter
+
 busquedaGidUI <- function(id) {
   ns <- NS(id)
   tagList(
@@ -124,3 +126,6 @@ busquedaGidServer <- function(input, output, session) {
     }
   })
 }
+
+
+# nolint end

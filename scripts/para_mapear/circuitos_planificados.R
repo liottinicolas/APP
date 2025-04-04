@@ -92,6 +92,17 @@ turnos_planificados_por_circuito <- function(){
   df_final <- df_final %>% 
     select(cod_recorrido,circuito_corto,municipio,numero_circuito,turno_planificado)
   
+  # Agrega columna de Frecuencia (valor por defecto)
+  df_final$Frecuencia <- 7
+  
+  # Modificar algunos valores de frecuencia según reglas específicas (estos son ejemplos)
+  df_final <- df_final %>%
+    mutate(Frecuencia = case_when(
+      municipio == "A" & turno_planificado == "N" ~ "Semanal",
+      municipio == "CH" ~ "Interdiaria",
+      TRUE ~ Frecuencia
+    ))
+  
   df_final$Fecha_inicio <- as.Date("2024-10-10")
   df_final$FechaFin <- as.Date(NA)
   
@@ -100,4 +111,35 @@ turnos_planificados_por_circuito <- function(){
   return(df_final)
 }
 
+# Función para registrar cambios históricos
+actualizar_circuito <- function(df_actual, cod_recorrido, nuevos_valores, fecha_cambio = Sys.Date()) {
+  # Encuentra el circuito actual y marca su fecha de fin
+  idx <- which(df_actual$cod_recorrido == cod_recorrido & is.na(df_actual$FechaFin))
+  
+  if(length(idx) > 0) {
+    # Cerrar el registro anterior
+    df_actual[idx, "FechaFin"] <- fecha_cambio - 1
+    
+    # Crear nueva fila con los cambios
+    nueva_fila <- df_actual[idx[1],]
+    for(col in names(nuevos_valores)) {
+      nueva_fila[[col]] <- nuevos_valores[[col]]
+    }
+    nueva_fila$Fecha_inicio <- fecha_cambio
+    nueva_fila$FechaFin <- as.Date(NA)
+    
+    # Añadir la nueva fila al dataframe
+    df_actual <- rbind(df_actual, nueva_fila)
+  }
+  
+  return(df_actual)
+}
+
 prueba <- turnos_planificados_por_circuito()
+
+# Ejemplo de cómo registrar un cambio
+# Cambiar turno y frecuencia del circuito A_101
+prueba <- actualizar_circuito(prueba, 
+                            "A_DU_RM_CL_101", 
+                            list(turno_planificado = "V", Frecuencia = "Semanal"),
+                            as.Date("2024-11-01"))

@@ -165,6 +165,12 @@ estadoDiarioUI <- function(id) {
           max = ultima_fecha_registro + 1,
           width = '200px'
         ),
+        downloadButton(
+          ns("descargar_csv"),
+          "Descargar CSV",
+          class = "btn btn-primary",
+          style = "margin-top: 10px; width: 200px;"
+        ),
         uiOutput(ns("diasUI")),
       ),
       column(
@@ -211,7 +217,7 @@ estadoDiarioServer <- function(input, output, session) {
   # Reactiva para las estadísticas diarias
   estadisticas_diarias <- reactive({
     req(input$filtro_fecha)
-    calcular_estadisticas_diarias(historico_estado_diario, input$filtro_fecha)
+    calcular_estadisticas_diarias(estado_diario_global, input$filtro_fecha)
   })
   
   # Outputs para los contadores
@@ -234,7 +240,7 @@ estadoDiarioServer <- function(input, output, session) {
     
     tryCatch({
       datos_filtrados <- filtrar_datos_estado_diario(
-        historico_estado_diario,
+        estado_diario_global,
         input$filtro_fecha,
         input$dias,
         input$checkbox_activoinactivo
@@ -242,13 +248,13 @@ estadoDiarioServer <- function(input, output, session) {
       
       if (nrow(datos_filtrados) == 0) {
         showNotification("No se encontraron datos para la fecha seleccionada.", type = "warning")
-        return(historico_estado_diario[0, ])
+        return(estado_diario_global[0, ])
       }
       
       return(datos_filtrados)
     }, error = function(e) {
       showNotification(paste("Error al filtrar los datos:", e$message), type = "error")
-      return(historico_estado_diario[0, ])
+      return(estado_diario_global[0, ])
     })
   })
   
@@ -257,7 +263,7 @@ estadoDiarioServer <- function(input, output, session) {
     req(input$filtro_fecha)
     
     tryCatch({
-      datos_filtrados <- historico_estado_diario %>%
+      datos_filtrados <- estado_diario_global %>%
         filter(Fecha == as.Date(input$filtro_fecha) - 1)
       
       if (nrow(datos_filtrados) == 0) {
@@ -306,6 +312,18 @@ estadoDiarioServer <- function(input, output, session) {
                 )
               ))
   })
+  
+  # Descargar datos como CSV
+  output$descargar_csv <- downloadHandler(
+    filename = function() {
+      paste("estado_diario_", format(input$filtro_fecha, "%Y-%m-%d"), ".csv", sep = "")
+    },
+    content = function(file) {
+      df <- estado_diario() %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      write.csv(df, file, row.names = FALSE)
+    }
+  )
   
   # Mapa
   output$map <- renderLeaflet({

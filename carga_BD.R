@@ -143,151 +143,43 @@ tryCatch({
   # Configuración de período de análisis
   escribir_log("INFO", "Iniciando análisis de datos")
   inicio <- as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS)
-  fin <- max(historico_estado_diario$Fecha)
-  fecha_consulta <- fin
+  fin <- max(estado_diario_global$Fecha)
+
   
   # Análisis de responsabilidades por tipo de equipo
   for (tipo_equipo in CONFIGURACION$TIPOS_EQUIPO) {
     escribir_log("INFO", paste("Procesando responsabilidades para", tipo_equipo))
     
-    # Variable para almacenar resultados
-    nombre_var <- paste0("prueba_", tolower(tipo_equipo))
-    
-    # Realizar análisis
-    assign(nombre_var, funcion_mostrar_responsables_por_incidencias(
+    # Solo calculamos los resultados pero no exportamos automáticamente
+    resultado <- funcion_mostrar_responsables_por_incidencias(
       historico_completo_llenado_incidencias,
-      historico_estado_diario,
-      inicio,
+      estado_diario_global,
       fin,
       tipo_equipo
-    ))
+    )
     
-    # Exportar resultados
-    funcion_exportar_incidencias_grua_o_pluma(get(nombre_var), tipo_equipo)
-    escribir_log("INFO", paste("Exportación completada para", tipo_equipo))
+    # Mostrar la fecha más antigua
+    escribir_log("INFO", paste("Fecha más antigua para", tipo_equipo, ":", resultado$fecha_antigua))
+    
+    escribir_log("INFO", paste("Procesamiento completado para", tipo_equipo))
   }
 }, error = function(e) {
   manejar_error(e, "analizar datos")
 })
 
-########################
-# SECCIÓN 6: ANÁLISIS ADICIONALES (TESTING)
-########################
 
-tryCatch({
-  # Análisis para período específico
-  escribir_log("INFO", "Realizando análisis adicionales")
-  ini <- as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS_DETALLADO)
-  fin <- as.Date(CONFIGURACION$FECHA_FIN_ANALISIS_DETALLADO)
-  prueba_grua_dia <- funcion_mostrar_responsables_por_incidencias(
-    historico_completo_llenado_incidencias,
-    historico_estado_diario,
-    ini,
-    fin,
-    "Grua"
-  )
-}, error = function(e) {
-  manejar_error(e, "realizar análisis adicionales")
-})
-
-########################
-# SECCIÓN 7: FUNCIONES AUXILIARES PARA BÚSQUEDA POR GID
-########################
-
-#' Exporta datos de un GID específico a Excel
-#'
-#' @param gid_buscado El identificador único a buscar
-#' @return No devuelve valor, genera archivo Excel
-funcion_imprimir_datosporgid <- function(gid_buscado) {
-  tryCatch({
-    escribir_log("INFO", paste("Exportando datos para GID:", gid_buscado))
-    
-    imprimir <- historico_completo_llenado_incidencias %>% 
-      filter(gid == gid_buscado) %>% 
-      select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
-             -Circuito, -DB, -Numero_caja)
-    
-    wb <- createWorkbook()
-    
-    # Añadir una hoja
-    addWorksheet(wb, "Datos")
-    
-    # Escribir el data frame como tabla con formato
-    writeDataTable(wb, sheet = "Datos", x = imprimir, 
-                  tableStyle = "TableStyleLight9")
-    
-    # Ajustar automáticamente el ancho de todas las columnas
-    setColWidths(wb, sheet = "Datos", cols = 1:ncol(imprimir), 
-                 widths = "auto")
-    
-    # Crear un estilo para fechas
-    dateStyle <- createStyle(numFmt = "dd/mm/yyyy")
-    
-    # Aplicar estilo a la columna de fechas
-    addStyle(wb, sheet = "Datos", style = dateStyle, 
-             cols = 2, rows = 2:(nrow(imprimir) + 1), 
-             gridExpand = TRUE)
-    
-    nombre_archivo <- file.path(CONFIGURACION$DIRECTORIO_SALIDA, 
-                               paste0("datos_gid_", gid_buscado, ".xlsx"))
-    saveWorkbook(wb, file = nombre_archivo, overwrite = TRUE)
-    
-    escribir_log("INFO", paste("Archivo generado:", nombre_archivo))
-  }, error = function(e) {
-    manejar_error(e, paste("exportar datos para GID", gid_buscado))
-  })
-}
-
-#' Obtiene datos de un GID específico
-#'
-#' @param gid_buscado El identificador único a buscar
-#' @return Data frame con los datos del GID
-funcion_obtener_datosporgid <- function(gid_buscado) {
-  tryCatch({
-    escribir_log("DEBUG", paste("Obteniendo datos para GID:", gid_buscado))
-    
-    imprimir <- historico_completo_llenado_incidencias %>% 
-      filter(gid == gid_buscado) %>% 
-      select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
-             -Circuito, -DB, -Numero_caja)
-    
-    return(imprimir)
-  }, error = function(e) {
-    manejar_error(e, paste("obtener datos para GID", gid_buscado))
-    return(NULL)
-  })
-}
-
-########################
-# SECCIÓN 8: EJECUCIÓN DE EJEMPLOS (PARA DESARROLLO)
-########################
-
-# Solo ejecutar ejemplos en modo desarrollo
-if (CONFIGURACION$MODO == "desarrollo") {
-  tryCatch({
-    escribir_log("INFO", "Ejecutando ejemplos de desarrollo")
-    
-    # Procesar GIDs de ejemplo
-    for (gid in CONFIGURACION$GIDS_EJEMPLO) {
-      if (gid == CONFIGURACION$GIDS_EJEMPLO[1]) {
-        funcion_imprimir_datosporgid(gid)
-      } else {
-        var_name <- paste0("asd_", gid)
-        assign(var_name, funcion_obtener_datosporgid(gid))
-      }
-    }
-  }, error = function(e) {
-    manejar_error(e, "ejecutar ejemplos de desarrollo")
-  })
-}
 
 # Mensaje de confirmación de carga completa
 escribir_log("INFO", paste("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO))
 cat("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO, "\n")
 
+# rm(historico_ubicaciones,historico_viajes,historico_estado_diario,historico_incidencias,historico_llenado)
+
+# ASD <- estado_diario_global %>% 
+#   filter(Fecha == "2025-04-03") %>% 
+#   filter(Acumulacion == 1) %>% 
+#   group_by(Circuito_corto) %>% 
+#   summarise(total = n())
+
 
 # nolint end
-
-asd <- estado_diario_global %>% 
-  filter(Fecha == "2025-03-31") %>% 
-  filter(Acumulacion == 1)
