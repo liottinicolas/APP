@@ -1,6 +1,12 @@
+# nolint start: line_length_linter, object_name_linter
+
+
+
 condicionContenedorUI <- function(id) {
   ns <- NS(id)
   tagList(
+    # Incluir shinyjs
+    shinyjs::useShinyjs(),
     
     # Dashboard mejorado
     div(
@@ -61,7 +67,7 @@ condicionContenedorUI <- function(id) {
             selectInput(
               ns("filtro_circuito_resumen"),
               label = NULL,
-              choices = c("Todos", unique(web_historico_completo_llenado_incidencias$Circuito_corto)),
+              choices = c("Todos"),
               selected = "Todos",
               width = '100%'
             )
@@ -161,6 +167,54 @@ condicionContenedorUI <- function(id) {
 condicionContenedorServer <- function(input, output, session) {
   ns <- session$ns
   
+  # Deshabilitar el selectInput de circuito al inicio
+  shinyjs::disable("filtro_circuito_resumen")
+  
+  # Observador para actualizar el filtro de circuito cuando cambia el municipio
+  observe({
+    # Si el municipio seleccionado es "Todos", deshabilita el filtro de circuito
+    if(input$filtro_municipio_resumen == "Todos") {
+      updateSelectInput(
+        session,
+        "filtro_circuito_resumen",
+        choices = c("Todos"),
+        selected = "Todos"
+      )
+      shinyjs::disable("filtro_circuito_resumen")
+    } else {
+      # Si se selecciona un municipio específico, habilita el filtro y muestra solo los circuitos que comienzan con ese municipio
+      municipio_seleccionado <- input$filtro_municipio_resumen
+      # Filtrar circuitos que comienzan con el municipio seleccionado
+      circuitos_filtrados <- web_historico_completo_llenado_incidencias %>%
+        filter(grepl(paste0("^", municipio_seleccionado), Circuito_corto)) %>%
+        pull(Circuito_corto) %>%
+        unique()
+      
+      # Ordenar los circuitos numéricamente
+      if(length(circuitos_filtrados) > 0) {
+        # Extraer números de los circuitos y ordenar
+        circuitos_ordenados <- circuitos_filtrados[order(as.numeric(gsub(".*_(\\d+).*", "\\1", circuitos_filtrados)))]
+        
+        updateSelectInput(
+          session,
+          "filtro_circuito_resumen",
+          choices = c("Todos", circuitos_ordenados),
+          selected = "Todos"
+        )
+        shinyjs::enable("filtro_circuito_resumen")
+      } else {
+        # Si no hay circuitos, mantener deshabilitado con mensaje informativo
+        updateSelectInput(
+          session,
+          "filtro_circuito_resumen",
+          choices = c("No hay circuitos disponibles"),
+          selected = "No hay circuitos disponibles"
+        )
+        shinyjs::disable("filtro_circuito_resumen")
+      }
+    }
+  })
+  
   # Datos reactivos para el dashboard de resumen
   datos_filtrados_resumen <- reactive({
     req(input$filtro_fecha_resumen) # Asegurarse de que la fecha está disponible
@@ -176,7 +230,8 @@ condicionContenedorServer <- function(input, output, session) {
     }
     
     # Filtrar por circuito si no es "Todos"
-    if(input$filtro_circuito_resumen != "Todos") {
+    if(input$filtro_circuito_resumen != "Todos" && 
+       input$filtro_circuito_resumen != "No hay circuitos disponibles") {
       df <- df %>% filter(Circuito_corto == input$filtro_circuito_resumen)
     }
     
@@ -187,8 +242,6 @@ condicionContenedorServer <- function(input, output, session) {
   output$tarjetas_resumen <- renderUI({
     df <- datos_filtrados_resumen()
     
-    total_contenedores_con_condicion <- nrow(df)
-    
     # Crear contadores para cada tipo de condición
     contador_condiciones <- sapply(cargar_opciones_condiciones()[-1], function(cond) {
       sum(str_detect(df$Condicion, fixed(cond, ignore_case = TRUE)))
@@ -196,7 +249,6 @@ condicionContenedorServer <- function(input, output, session) {
     
     # Colores para las tarjetas
     colores <- c(
-      "#3498db", # Total (Azul)
       "#f39c12", # Basura afuera (Naranja)
       "#e74c3c", # Dos ciclos (Rojo)
       "#9b59b6", # Escombro (Morado)
@@ -206,33 +258,6 @@ condicionContenedorServer <- function(input, output, session) {
       "#d35400"  # Requiere Mantenimiento (Naranja oscuro)
     )
     
-    # Tarjeta para el total
-    tarjeta_total <- div(
-      style = paste0(
-        "background: linear-gradient(135deg, ", colores[1], ", #2c3e50);",
-        "border-radius: 10px;",
-        "padding: 20px;",
-        "color: white;",
-        "box-shadow: 0 4px 15px rgba(0,0,0,0.1);",
-        "display: flex;",
-        "flex-direction: column;",
-        "justify-content: space-between;",
-        "min-width: 200px;"
-      ),
-      div(
-        style = "font-size: 16px; font-weight: 500; margin-bottom: 5px;",
-        "Total"
-      ),
-      div(
-        style = "font-size: 28px; font-weight: 700; margin-bottom: 5px;",
-        total_contenedores_con_condicion
-      ),
-      div(
-        style = "font-size: 14px; opacity: 0.8;",
-        "Contenedores con condiciones"
-      )
-    )
-    
     # Crear tarjetas para cada condición
     tarjetas <- lapply(seq_along(contador_condiciones), function(i) {
       condicion <- names(contador_condiciones)[i]
@@ -240,7 +265,7 @@ condicionContenedorServer <- function(input, output, session) {
       
       div(
         style = paste0(
-          "background: linear-gradient(135deg, ", colores[i+1], ", #34495e);",
+          "background: linear-gradient(135deg, ", colores[i], ", #34495e);",
           "border-radius: 10px;",
           "padding: 20px;",
           "color: white;",
@@ -268,7 +293,6 @@ condicionContenedorServer <- function(input, output, session) {
     # Crear una grid de tarjetas
     div(
       style = "display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;",
-      tarjeta_total,
       tarjetas
     )
   })
@@ -352,3 +376,6 @@ condicionContenedorServer <- function(input, output, session) {
   })
   
 }
+
+
+# nolint end
