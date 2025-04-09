@@ -32,7 +32,7 @@ ui <- dashboardPage(
   skin = "green",  # Cambia el color principal del tema
   
   dashboardHeader(title = "Incidencias"),
-  
+      
   dashboardSidebar(
     sidebarMenu(
       menuItem("Estado diario", tabName = "estado_diario", icon = icon("globe")),
