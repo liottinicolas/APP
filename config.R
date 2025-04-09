@@ -6,14 +6,9 @@
 CONFIGURACION <- list(
   # Fechas de análisis (formato YYYY-MM-DD)
   FECHA_INICIO_ANALISIS = "2025-02-20",
-  FECHA_INICIO_ANALISIS_DETALLADO = "2025-03-01",
-  FECHA_FIN_ANALISIS_DETALLADO = "2025-03-26",
   
   # Tipos de equipos para análisis
   TIPOS_EQUIPO = c("Grua", "Pluma"),
-  
-  # GIDs para ejemplos
-  GIDS_EJEMPLO = c(134160, 177075, 181129),
   
   # Directorios
   DIRECTORIO_SALIDA = "./salida/",
@@ -56,8 +51,6 @@ validar_configuracion <- function() {
   # Validar fechas
   tryCatch({
     as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS)
-    as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS_DETALLADO)
-    as.Date(CONFIGURACION$FECHA_FIN_ANALISIS_DETALLADO)
   }, error = function(e) {
     stop("Error en formato de fechas en configuración: ", e$message)
   })

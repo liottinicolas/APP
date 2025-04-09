@@ -63,8 +63,8 @@ incidenciasPlumaServer <- function(input, output, session) {
   
   # ---- Filtro Reactivo: Pluma ----
   filtrado_reactivo_pluma <- reactive({
-    df_final <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,
-                                                             estado_diario_global,
+    df_final <- funcion_mostrar_responsables_por_incidencias(web_historico_completo_llenado_incidencias,
+                                                             web_historico_estado_diario,
                                                              ultima_fecha_registro,
                                                              "Pluma")$datos
     

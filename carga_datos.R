@@ -85,6 +85,13 @@ historico_ubicaciones <- actualizar_planillas_RDS(
   rutas_ubicaciones$ruta_RDS_datos
 )
 
+# prueba <- read_rds(rutas_ubicaciones$ruta_RDS_datos)
+# prueba <- historico_ubicaciones_cambio_de_estado
+# prueba <- prueba %>% 
+#   filter(Fecha < "2025-05-05")
+# 
+# saveRDS(prueba, rutas_ubicaciones$ruta_RDS_datos)
+
 # Actualizo las modificaciones de ubicaciones
 ruta_RDS_modificaciones_historicas <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_modificaciones.rds")
 historico_ubicaciones_cambio_de_estado <- funcion_guardar_historico_modificaciones(
@@ -100,7 +107,7 @@ ruta_RDS_planillas_procesadas <- rutas_viajes$ruta_RDS_planillas_procesadas
 historico_viajes <- actualizar_planillas_RDS(
   ruta_proyecto, 
   rutas_viajes$ruta_funciones, 
-  rutas_viajes$ruta_carpeta_archivos, 
+  rutas_viajes$ruta_carpeta_archivos,
   rutas_viajes$ruta_RDS_datos
 )
 
@@ -132,5 +139,10 @@ historico_incidencias_por_gid <- actualizar_planillas_RDS_incidencias_por_gid(ru
 ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/historico_llenado_completo.rds")
 historico_completo_llenado_incidencias <- actualizar_planillas_RDS_llenado_completas(ruta_RDS_llenado_completo)
 
+
+# Actualizo las modificaciones de ubicaciones
+ruta_RDS_ubicaciones_conthegeom <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds")
+ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
+saveRDS(ubicaciones_existentes,ruta_RDS_ubicaciones_conthegeom)
 
 # nolint end

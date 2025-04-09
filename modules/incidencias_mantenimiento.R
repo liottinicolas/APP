@@ -52,8 +52,8 @@ incidenciasMantenimientoServer <- function(input, output, session) {
   ns <- session$ns
   
   filtrado_reactivo_Mantenimiento <- reactive({
-    df_final <- funcion_mostrar_responsables_por_incidencias(historico_completo_llenado_incidencias,
-                                                           estado_diario_global,
+    df_final <- funcion_mostrar_responsables_por_incidencias(web_historico_completo_llenado_incidencias,
+                                                             web_historico_estado_diario,
                                                            ultima_fecha_registro,
                                                            "Mantenimiento")$datos
     

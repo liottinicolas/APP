@@ -18,48 +18,12 @@ tryCatch({
 # SECCIÓN 1: SISTEMA DE LOGGING
 ########################
 
-# Configuración del sistema de logging
-timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-log_file <- file.path(CONFIGURACION$DIRECTORIO_LOGS, paste0("log_", timestamp, ".txt"))
-
-# Función para escribir logs
-escribir_log <- function(nivel, mensaje, detalles = NULL) {
-  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-  
-  # Niveles de log y sus valores numéricos
-  niveles <- list(DEBUG = 1, INFO = 2, WARN = 3, ERROR = 4)
-  
-  # Solo escribir si el nivel del mensaje es mayor o igual al nivel configurado
-  if (niveles[[nivel]] >= niveles[[CONFIGURACION$NIVEL_LOG]]) {
-    # Formatear mensaje
-    log_mensaje <- sprintf("[%s] [%s] %s", timestamp, nivel, mensaje)
-    
-    # Añadir detalles si existen
-    if (!is.null(detalles)) {
-      log_mensaje <- paste0(log_mensaje, "\nDetalles: ", paste(detalles, collapse = " "))
-    }
-    
-    # Escribir en archivo
-    write(log_mensaje, file = log_file, append = TRUE)
-    
-    # Mostrar en consola si estamos en modo desarrollo
-    if (CONFIGURACION$MODO == "desarrollo" || nivel == "ERROR") {
-      cat(log_mensaje, "\n")
-    }
-  }
-}
-
-# Función para manejo de errores global
-manejar_error <- function(e, contexto) {
-  mensaje_error <- paste("Error en", contexto, ":", e$message)
-  escribir_log("ERROR", mensaje_error, detalles = as.character(e$call))
-  if (CONFIGURACION$MODO == "desarrollo") {
-    stop(mensaje_error)
-  }
-}
-
-# Iniciar log
-escribir_log("INFO", paste("Iniciando script carga_BD.R en modo", CONFIGURACION$MODO))
+# Cargar archivo de logging
+tryCatch({
+  source("logging.R")
+}, error = function(e) {
+  stop("Error al cargar archivo de logging: ", e$message)
+})
 
 ########################
 # SECCIÓN 2: CARGA DE DEPENDENCIAS
@@ -90,27 +54,6 @@ cargar_archivo("funciones_para_web.R")
 # Carga de datos principal
 cargar_archivo("carga_datos.R")
 
-########################
-# SECCIÓN 3: PROCESAMIENTO DE DATOS
-########################
-
-tryCatch({
-  # Obtener ubicaciones y procesar estado diario
-  escribir_log("INFO", "Procesando ubicaciones y estado diario")
-  ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
-  estado_diario_global <- funcion_agregar_the_geom_a_faltantes(
-    historico_estado_diario,
-    ubicaciones_existentes$ubicaciones_con_thegeom
-  )
-  
-  # Cálculo de fechas relevantes
-  ultima_fecha_registro <- max(historico_estado_diario$Fecha, na.rm = TRUE)
-  fecha_informe_diario <- ultima_fecha_registro + 1
-  escribir_log("INFO", paste("Última fecha de registro:", ultima_fecha_registro, 
-                            "- Fecha informe diario:", fecha_informe_diario))
-}, error = function(e) {
-  manejar_error(e, "procesar datos iniciales")
-})
 
 ########################
 # SECCIÓN 4: LIMPIEZA DE VARIABLES TEMPORALES
@@ -143,7 +86,7 @@ tryCatch({
   # Configuración de período de análisis
   escribir_log("INFO", "Iniciando análisis de datos")
   inicio <- as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS)
-  fin <- max(estado_diario_global$Fecha)
+  fin <- max(historico_estado_diario$Fecha)
 
   
   # Análisis de responsabilidades por tipo de equipo
@@ -151,9 +94,11 @@ tryCatch({
     escribir_log("INFO", paste("Procesando responsabilidades para", tipo_equipo))
     
     # Solo calculamos los resultados pero no exportamos automáticamente
+    ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
+    
     resultado <- funcion_mostrar_responsables_por_incidencias(
       historico_completo_llenado_incidencias,
-      estado_diario_global,
+      historico_estado_diario,
       fin,
       tipo_equipo
     )
@@ -183,3 +128,5 @@ cat("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO, "\
 
 
 # nolint end
+
+# funcion_imprimir_datosporgid(162392)

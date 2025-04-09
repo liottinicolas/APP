@@ -71,7 +71,7 @@ busquedaGidServer <- function(input, output, session) {
   llenado <- eventReactive(input$btn_buscar_porgid, {
     req(input$txt_busqueda_gid)  # Asegura que el input no esté vacío
 
-    historico_completo_llenado_incidencias %>%
+    web_historico_completo_llenado_incidencias %>%
       filter(gid == input$txt_busqueda_gid) %>%
       filter(Fecha >= input$fecha_busqueda_gid[1]) %>%
       filter(Fecha <= input$fecha_busqueda_gid[2]) %>% 

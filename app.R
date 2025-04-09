@@ -6,10 +6,14 @@ library(shinydashboard)
 library(leaflet)
 library(DT)
 
+source("config.R")
+source("logging.R")
 source("global.R")
-source("carga_BD.R")
+source("carga_informacion_web.R")
+source("funciones_para_web.R")
+source("funciones_utiles.R")
 
-
+# source("carga_BD.R")
 
 # Cargar módulos
 source("modules/estado_diario.R")

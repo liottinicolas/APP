@@ -30,9 +30,9 @@ condicionContenedorUI <- function(id) {
             dateInput(
               ns("filtro_fecha_resumen"),
               label = NULL,
-              value = max(historico_completo_llenado_incidencias$Fecha),
+              value = max(web_historico_completo_llenado_incidencias$Fecha),
               min = as.Date("2024-10-10"),
-              max = max(historico_completo_llenado_incidencias$Fecha),
+              max = max(web_historico_completo_llenado_incidencias$Fecha),
               width = '100%'
             )
           ),
@@ -46,7 +46,7 @@ condicionContenedorUI <- function(id) {
             selectInput(
               ns("filtro_municipio_resumen"),
               label = NULL,
-              choices = c("Todos", unique(historico_completo_llenado_incidencias$Municipio)),
+              choices = c("Todos", unique(web_historico_completo_llenado_incidencias$Municipio)),
               selected = "Todos",
               width = '100%'
             )
@@ -61,7 +61,7 @@ condicionContenedorUI <- function(id) {
             selectInput(
               ns("filtro_circuito_resumen"),
               label = NULL,
-              choices = c("Todos", unique(historico_completo_llenado_incidencias$Circuito_corto)),
+              choices = c("Todos", unique(web_historico_completo_llenado_incidencias$Circuito_corto)),
               selected = "Todos",
               width = '100%'
             )
@@ -124,9 +124,9 @@ condicionContenedorUI <- function(id) {
               dateInput(
                 ns("filtro_fecha_condicion"),
                 label = NULL,
-                value = max(historico_completo_llenado_incidencias$Fecha),
+                value = max(web_historico_completo_llenado_incidencias$Fecha),
                 min = as.Date("2024-10-10"),
-                max = max(historico_completo_llenado_incidencias$Fecha),
+                max = max(web_historico_completo_llenado_incidencias$Fecha),
                 width = '100%'
               ),
               
@@ -166,7 +166,7 @@ condicionContenedorServer <- function(input, output, session) {
     req(input$filtro_fecha_resumen) # Asegurarse de que la fecha está disponible
     
     # Filtra inicialmente por la fecha seleccionada
-    df <- historico_completo_llenado_incidencias %>%
+    df <- web_historico_completo_llenado_incidencias %>%
       filter(Fecha == input$filtro_fecha_resumen) %>%
       filter(!is.na(Condicion) & Condicion != "")
     
@@ -316,7 +316,7 @@ condicionContenedorServer <- function(input, output, session) {
     req(input$filtro_fecha_condicion) # Asegúrate de que el filtro de fecha esté disponible
     
     # Filtra inicialmente por la fecha seleccionada y asegura que 'Condicion_contenedor' no esté vacío
-    df_condiciones_contenedor <- historico_completo_llenado_incidencias %>%
+    df_condiciones_contenedor <- web_historico_completo_llenado_incidencias %>%
       filter(Fecha == input$filtro_fecha_condicion) %>% 
       filter(Condicion != "")
     

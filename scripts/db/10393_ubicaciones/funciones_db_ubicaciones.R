@@ -81,6 +81,8 @@ funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicacion
     
     fecha_fin <- max(llenado$Fecha)
     
+    if(ultimo_dia_con_modificacion < fecha_fin){
+    
     ## si no hay modificaciones?
     fechas <- sort(unique(ubicaciones$Fecha[ubicaciones$Fecha > ultimo_dia_con_modificacion]))
     
@@ -165,6 +167,8 @@ funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicacion
     datos_nuevos <- bind_rows(lista_cambios)
     
     historicos_modificados <- bind_rows(historicos_modificados, datos_nuevos)
+    
+    }
     
     }
     

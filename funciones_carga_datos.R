@@ -227,7 +227,6 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   estado_diario_global <- funcion_agregar_the_geom_a_faltantes(estado_diario_global,ubicaciones_unicas) %>% 
     distinct()
 
-
   
   # Guardar el resultado
   saveRDS(estado_diario_global , file = ruta_datos)

@@ -42,6 +42,8 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
         # Almacenar los resultados si existen cambios
         if(nrow(informe_del_dia) > 0) {
           lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
+          print(paste("Procesando día:", fecha))
+          
         }
       }
       
@@ -80,6 +82,8 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
       # Almacenar los resultados si existen cambios
       if(nrow(informe_del_dia) > 0) {
         lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
+        print(paste("Procesando día:", fecha))
+        
       }
     }
     

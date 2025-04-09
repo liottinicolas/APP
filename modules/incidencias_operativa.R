@@ -53,10 +53,10 @@ incidenciasOperativaServer <- function(input, output, session) {
   
   filtrado_reactivo_Operativa <- reactive({
     req(input$fecha_Operativa)
-    historico_incidencias_por_gid %>%
+    web_historico_completo_llenado_incidencias %>%
       filter(Responsable == "Operativa") %>% 
-      filter(Fecha_incidencia >= input$fecha_Operativa[1]) %>% 
-      filter(Fecha_incidencia <= input$fecha_Operativa[2]) %>% 
+      filter(Fecha >= input$fecha_Operativa[1]) %>% 
+      filter(Fecha <= input$fecha_Operativa[2]) %>% 
       filter(Incidencia %in% input$checkbox_Operativa)  # Filtra según los valores seleccionados en el checkbox
     
   })
@@ -83,9 +83,8 @@ incidenciasOperativaServer <- function(input, output, session) {
   # Mostrar los datos filtrados en la tabla
   output$tabla_Operativa <- renderDT({
     filtrado_reactivo_Operativa() %>% 
-      select(Fecha_incidencia, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
-      rename(Fecha = Fecha_incidencia,
-             Circuito = Circuito_corto) %>% 
+      select(Fecha, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
+      rename(Circuito = Circuito_corto) %>% 
       datatable(
         filter = "top",         # Agrega filtros en la parte superior de cada columna
         options = list(lengthMenu = c(10, 25, 50, 100),
@@ -122,7 +121,7 @@ incidenciasOperativaServer <- function(input, output, session) {
     content = function(file) {
       
       datos <- filtrado_reactivo_Operativa() %>% 
-        select(Fecha_incidencia, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
+        select(Fecha, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
         rename(Circuito = Circuito_corto)
       
       write.csv(datos, file, row.names = FALSE)

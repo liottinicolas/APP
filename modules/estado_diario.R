@@ -217,7 +217,7 @@ estadoDiarioServer <- function(input, output, session) {
   # Reactiva para las estadísticas diarias
   estadisticas_diarias <- reactive({
     req(input$filtro_fecha)
-    calcular_estadisticas_diarias(estado_diario_global, input$filtro_fecha)
+    calcular_estadisticas_diarias(web_historico_estado_diario, input$filtro_fecha)
   })
   
   # Outputs para los contadores
@@ -240,7 +240,7 @@ estadoDiarioServer <- function(input, output, session) {
     
     tryCatch({
       datos_filtrados <- filtrar_datos_estado_diario(
-        estado_diario_global,
+        web_historico_estado_diario,
         input$filtro_fecha,
         input$dias,
         input$checkbox_activoinactivo
@@ -248,13 +248,13 @@ estadoDiarioServer <- function(input, output, session) {
       
       if (nrow(datos_filtrados) == 0) {
         showNotification("No se encontraron datos para la fecha seleccionada.", type = "warning")
-        return(estado_diario_global[0, ])
+        return(web_historico_estado_diario[0, ])
       }
       
       return(datos_filtrados)
     }, error = function(e) {
       showNotification(paste("Error al filtrar los datos:", e$message), type = "error")
-      return(estado_diario_global[0, ])
+      return(web_historico_estado_diario[0, ])
     })
   })
   
@@ -263,7 +263,7 @@ estadoDiarioServer <- function(input, output, session) {
     req(input$filtro_fecha)
     
     tryCatch({
-      datos_filtrados <- estado_diario_global %>%
+      datos_filtrados <- web_historico_estado_diario %>%
         filter(Fecha == as.Date(input$filtro_fecha) - 1)
       
       if (nrow(datos_filtrados) == 0) {

@@ -443,7 +443,7 @@ imprimir_repetidos <- function(df){
 
 
 
-
+# incidencias_por_gid <- historico_incidencias_completas
 
 funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por_gid,fecha_consulta,responsable){
   incidencias_del_dia <- incidencias_por_gid %>% 
@@ -451,6 +451,7 @@ funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por
     filter(Responsable == responsable) 
   
 }
+
 
 # inicio <- as.Date("2025-02-20")
 # fin <- max(historico_estado_diario$Fecha)
@@ -664,7 +665,6 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
     filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
     ungroup()
 
-  
   buscar_ubis <- ubicaciones_existentes$ubicaciones_con_thegeom
   
   # Unir y calcular diferencia de días entre fechas
