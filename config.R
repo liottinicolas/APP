@@ -6,6 +6,7 @@
 CONFIGURACION <- list(
   # Fechas de análisis (formato YYYY-MM-DD)
   FECHA_INICIO_ANALISIS = "2025-02-20",
+  FECHA_INICIO_HISTORICO_LLENADO = "2024-10-10",
   
   # Tipos de equipos para análisis
   TIPOS_EQUIPO = c("Grua", "Pluma"),

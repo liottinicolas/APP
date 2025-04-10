@@ -1,4 +1,4 @@
-source("global.R")
+
 source("carga_BD.R")
 
 # Configuración del certificado SSL

@@ -15,7 +15,7 @@ busquedaGidUI <- function(id) {
             label = "Seleccione un rango de fechas",
             start = ultima_fecha_registro - 15,
             end = ultima_fecha_registro,
-            min = ultima_fecha_registro-50,
+            min = as.Date(CONFIGURACION$FECHA_INICIO_HISTORICO_LLENADO),
             max = ultima_fecha_registro
           ),
           actionButton(inputId = ns("btn_buscar_porgid"), label = "Buscar")
@@ -149,14 +149,14 @@ busquedaGidServer <- function(input, output, session) {
         
         br(),
         
-        # Gráficos
+        # Gráficos de distribución
         fluidRow(
           column(
             width = 6,
             div(
               style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
-              h4("Evolución del porcentaje de llenado", style = "margin-top: 0;"),
-              plotlyOutput(ns("grafico_llenado"))
+              h4("Distribución de llenado", style = "margin-top: 0;"),
+              plotlyOutput(ns("grafico_llenado_distribucion"))
             )
           ),
           column(
@@ -172,95 +172,58 @@ busquedaGidServer <- function(input, output, session) {
     )
   })
   
-  # Gráfico de evolución del porcentaje de llenado
-  output$grafico_llenado <- renderPlotly({
+  # Gráfico de distribución de llenado
+  output$grafico_llenado_distribucion <- renderPlotly({
     req(llenado())
     data <- llenado()
     
     if (nrow(data) == 0) return(NULL)
     
-    # Ordenar por fecha para gráfico temporal y filtrar para mostrar solo un registro por fecha
-    # priorizando los que tienen % de llenado
-    data_filtrada <- data %>%
-      arrange(Fecha, desc(!is.na(Porcentaje_llenado)), desc(Porcentaje_llenado)) %>%
-      group_by(Fecha) %>%
-      slice(1) %>%  # Tomar solo el primer registro de cada fecha (el que tiene % de llenado si existe)
-      ungroup() %>%
-      arrange(Fecha)
+    # Contar por valor de llenado
+    distribucion_llenado <- data %>%
+      mutate(
+        Porcentaje_llenado = ifelse(is.na(Porcentaje_llenado), "No levantado", 
+                                   paste0(round(Porcentaje_llenado), "%"))
+      ) %>%
+      count(Porcentaje_llenado) %>%
+      arrange(desc(n))
     
-    # Crear secuencia completa de fechas
-    fecha_min <- min(data$Fecha)
-    fecha_max <- max(data$Fecha)
-    todas_fechas <- data.frame(Fecha = seq.Date(from = fecha_min, to = fecha_max, by = "day"))
-    
-    # Unir los datos con la secuencia completa de fechas
-    data_completa <- todas_fechas %>%
-      left_join(data_filtrada, by = "Fecha") %>%
-      arrange(Fecha)
-    
-    # Formatear las fechas para mejor visualización
-    # Si hay más de 10 fechas, mostrar solo algunas para mejorar legibilidad
-    num_fechas <- nrow(data_completa)
-    if (num_fechas > 10) {
-      # Determinar cada cuántas fechas mostrar una etiqueta
-      step <- ceiling(num_fechas / 10)
-      mostrar_etiqueta <- c(rep(c(TRUE, rep(FALSE, step-1)), length.out = num_fechas))
-      # Asegurarse de mostrar la primera y última fecha
-      mostrar_etiqueta[1] <- TRUE
-      mostrar_etiqueta[num_fechas] <- TRUE
-    } else {
-      mostrar_etiqueta <- rep(TRUE, num_fechas)
+    # Si hay demasiadas categorías, agrupar las menos comunes
+    if (nrow(distribucion_llenado) > 5) {
+      top_valores <- distribucion_llenado[1:5,]
+      otras <- data.frame(
+        Porcentaje_llenado = "Otros",
+        n = sum(distribucion_llenado$n[6:nrow(distribucion_llenado)])
+      )
+      distribucion_llenado <- rbind(top_valores, otras)
     }
     
-    # Formatear fechas para etiquetas
-    fechas_formateadas <- format(data_completa$Fecha, "%d-%b")
+    # Definir colores según el valor
+    colores <- sapply(distribucion_llenado$Porcentaje_llenado, function(x) {
+      if (x == "100%") return("#000000")  # Negro
+      if (x == "75%") return("#FF0000")   # Rojo
+      if (x == "50%") return("#FFD700")   # Amarillo
+      if (x == "25%") return("#00FF00")   # Verde
+      if (x == "No levantado") return("#808080")  # Gris
+      return("#A9A9A9")  # Gris claro para otros valores
+    })
     
-    # Crear vector de etiquetas visibles/invisibles
-    etiquetas_visibles <- ifelse(mostrar_etiqueta, fechas_formateadas, "")
-    
-    # Crear gráfico de barras
-    p <- plot_ly(data_completa, 
-                x = ~as.character(Fecha), 
-                y = ~Porcentaje_llenado,
-                type = 'bar',
-                marker = list(
-                  color = '#4CAF50',  # Verde para todas las barras
-                  line = list(color = '#000000', width = 1)
-                ),
-                text = ~paste("% Llenado:", ifelse(is.na(Porcentaje_llenado), "Sin datos", paste0(Porcentaje_llenado, "%")),
-                             "<br>Fecha:", format(Fecha, "%d-%b-%Y"),
-                             "<br>Turno:", ifelse(is.na(Turno), "Sin datos", Turno)),
-                hoverinfo = 'text') %>%
+    # Crear gráfico de torta
+    p <- plot_ly(distribucion_llenado, 
+                labels = ~Porcentaje_llenado, 
+                values = ~n, 
+                type = 'pie',
+                textinfo = 'label+percent',
+                insidetextorientation = 'radial',
+                marker = list(colors = colores)) %>%
       layout(
         title = "",
-        xaxis = list(
-          title = "Fecha", 
-          tickangle = 45,
-          tickmode = "array",
-          tickvals = as.character(data_completa$Fecha),
-          ticktext = etiquetas_visibles,
-          tickfont = list(size = 10)
-        ),
-        yaxis = list(
-          title = "% Llenado",
-          range = c(0, max(data_completa$Porcentaje_llenado, na.rm = TRUE) * 1.1) # Añadir espacio superior
-        ),
-        showlegend = FALSE,
-        margin = list(b = 100) # Aumentar margen inferior para que quepan las etiquetas
+        showlegend = TRUE,
+        legend = list(
+          orientation = "h",
+          y = -0.2
+        )
       )
-    
-    # Añadir línea horizontal del promedio (solo considerando los días con datos)
-    prom_llenado <- mean(data_filtrada$Porcentaje_llenado, na.rm = TRUE)
-    p <- p %>% add_trace(
-      x = ~as.character(Fecha),
-      y = rep(prom_llenado, length(data_completa$Fecha)),
-      type = 'scatter',
-      mode = 'lines',
-      line = list(color = '#FF9800', width = 2, dash = 'dash'),
-      name = paste0("Promedio: ", round(prom_llenado, 1), "%"),
-      hoverinfo = "text",
-      text = paste0("Promedio: ", round(prom_llenado, 1), "%")
-    )
     
     p
   })
