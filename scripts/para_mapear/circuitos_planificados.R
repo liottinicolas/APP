@@ -1,3 +1,8 @@
+# nolint start: line_length_linter, object_name_linter
+
+ruta_archivo <- file.path(ruta_proyecto, "scripts", "para_mapear", "circuitos_planificados.rds")
+
+
 ## Cargar los datos
 
 
@@ -174,16 +179,75 @@ actualizar_circuito <- function(df_actual, cod_recorrido, nuevos_valores, fecha_
     
     # Añadir la nueva fila al dataframe
     df_actual <- rbind(df_actual, nueva_fila)
+    
+    # Guardar el dataframe actualizado con manejo de errores
+    tryCatch({
+      # Verificar que la ruta existe
+      directorio <- dirname(ruta_archivo)
+      if (!dir.exists(directorio)) {
+        dir.create(directorio, recursive = TRUE, showWarnings = FALSE)
+      }
+      
+      # Intentar guardar el archivo
+      saveRDS(df_actual, ruta_archivo)
+      message("Archivo guardado exitosamente en: ", normalizePath(ruta_archivo))
+    }, error = function(e) {
+      # Capturar el error y mostrar mensaje
+      message("Error al guardar el archivo: ", e$message)
+      message("Ruta de intento: ", normalizePath(ruta_archivo, mustWork = FALSE))
+      message("Directorio de trabajo actual: ", getwd())
+      message("Ruta del proyecto: ", ruta_proyecto)
+      message("¿Tienes permisos de escritura en este directorio?")
+      
+      # Intentar guardar en el directorio de usuario como alternativa
+      backup_path <- file.path(Sys.getenv("HOME"), "circuitos_planificados_backup.rds")
+      tryCatch({
+        saveRDS(df_actual, backup_path)
+        message("Se guardó una copia de respaldo en: ", backup_path)
+      }, error = function(e2) {
+        message("También falló el guardado de respaldo: ", e2$message)
+      })
+    })
   }
   
   return(df_actual)
 }
 
-prueba <- turnos_planificados_por_circuito()
+cargar_o_crear_circuitos <- function() {
+  if (file.exists(ruta_archivo)) {
+    return(readRDS(ruta_archivo))
+  } else {
+    df_inicial <- turnos_planificados_por_circuito()
+    
+    # Asegurarse de que el directorio existe
+    directorio <- dirname(ruta_archivo)
+    if (!dir.exists(directorio)) {
+      dir.create(directorio, recursive = TRUE, showWarnings = FALSE)
+    }
+    
+    # Intentar guardar con manejo de errores
+    tryCatch({
+      saveRDS(df_inicial, ruta_archivo)
+      message("Archivo inicial creado en: ", normalizePath(ruta_archivo))
+    }, error = function(e) {
+      message("Error al crear el archivo inicial: ", e$message)
+      message("Ruta de intento: ", normalizePath(ruta_archivo, mustWork = FALSE))
+      message("Directorio de trabajo actual: ", getwd())
+      message("Ruta del proyecto: ", ruta_proyecto)
+    })
+    
+    return(df_inicial)
+  }
+}
 
-# Ejemplo de cómo registrar un cambio
-# Cambiar turno y frecuencia del circuito A_101
-prueba <- actualizar_circuito(prueba, 
-                            "A_DU_RM_CL_101", 
-                            list(turno_planificado = "V", Frecuencia = "3.5"),
-                            as.Date("2024-11-01"))
+datos_circuitos <- cargar_o_crear_circuitos()
+# 
+# # Ejemplo de cómo registrar un cambio
+# # Cambiar turno y frecuencia del circuito A_101
+# prueba <- actualizar_circuito(prueba, 
+#                             "A_DU_RM_CL_101", 
+#                             list(turno_planificado = "V", Frecuencia = "3.5"),
+#                             as.Date("2024-11-01"))
+# 
+# 
+# # nolint end
