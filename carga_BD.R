@@ -51,6 +51,37 @@ cargar_archivo("funciones_utiles.R")
 # Funciones para la interfaz web
 cargar_archivo("funciones_para_web.R")
 
+# Limpieza de duplicados en historico_estado_diario
+tryCatch({
+  escribir_log("INFO", "Verificando y limpiando duplicados en historico_estado_diario")
+  ruta_RDS_estado_diario <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
+  
+  if(file.exists(ruta_RDS_estado_diario)) {
+    # Leer el archivo actual
+    historico_estado_diario_actual <- readRDS(ruta_RDS_estado_diario)
+    
+    # Limpiar duplicados
+    historico_estado_diario_limpio <- historico_estado_diario_actual %>%
+      distinct(gid, Fecha, .keep_all = TRUE) %>%
+      arrange(Fecha, gid)
+    
+    # Verificar si se eliminaron duplicados
+    num_registros_antes <- nrow(historico_estado_diario_actual)
+    num_registros_despues <- nrow(historico_estado_diario_limpio)
+    
+    if(num_registros_antes > num_registros_despues) {
+      # Guardar la versión limpia
+      saveRDS(historico_estado_diario_limpio, file = ruta_RDS_estado_diario)
+      escribir_log("INFO", paste("Se eliminaron", num_registros_antes - num_registros_despues, 
+                                "registros duplicados en historico_estado_diario"))
+    } else {
+      escribir_log("INFO", "No se encontraron duplicados en historico_estado_diario")
+    }
+  }
+}, error = function(e) {
+  manejar_error(e, "al limpiar duplicados en historico_estado_diario")
+})
+
 # Carga de datos principal
 cargar_archivo("carga_datos.R")
 

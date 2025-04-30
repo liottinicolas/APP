@@ -22,7 +22,7 @@ CONFIGURACION <- list(
   ARCHIVO_UBICACIONES = "ubicaciones.rds",
   
   # Modo de ejecución: "produccion" o "desarrollo"
-  MODO = "desarrollo",
+  MODO = "produccion",
   
   # Nivel de log: "DEBUG", "INFO", "WARN", "ERROR"
   NIVEL_LOG = "INFO",

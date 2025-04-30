@@ -1,3 +1,5 @@
+# nolint start: line_length_linter, object_name_linter
+
 #########################################################################
 # Funciones para procesar y mantener actualizado el estado diario
 # de los contenedores de residuos.
@@ -13,11 +15,10 @@
 # ruta_datos <- ruta_RDS_datos
 # ubicaciones <- historico_ubicaciones
 
-#' Actualiza las planillas RDS del estado diario de contenedores
+#' Actualiza el histórico del estado diario de los contenedores
 #' 
-#' Esta función obtiene y actualiza el estado diario de todos los contenedores,
-#' procesando la información desde la última actualización hasta la fecha actual.
-#' Si no existen datos previos, inicia el procesamiento desde una fecha predeterminada.
+#' Procesa nuevos datos de estado diario y los agrega al histórico,
+#' comparando con la última fecha registrada.
 #' 
 #' @param ruta_datos Ruta donde se guardará el archivo RDS
 #' @return Dataframe con el estado diario global actualizado
@@ -43,39 +44,42 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     # Verificar si existen nuevas fechas a procesar
     fechas <- sort(unique(ubicaciones$Fecha[ubicaciones$Fecha > ultimo_dia_con_modificacion]))
     
-    if(length(fechas) > 0){
-      
-      # Lista para almacenar los cambios de cada día
+    if(length(fechas) > 0) {
+      # Lista para almacenar informes diarios de fechas nuevas
       lista_cambios <- list()
       
-      # Procesar cada día desde el último registrado hasta el actual
+      # Procesar cada día nuevo
       for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin, by = "day")) {
-        
         fecha <- as.Date(i, origin = "1970-01-01")
         
         # Calcular estado diario para esta fecha
         informe_del_dia <- funcion_calcular_estado_diario(fecha)
         
-        # Almacenar solo si hay resultados
+        # Almacenar informe si tiene contenido
         if(nrow(informe_del_dia) > 0) {
           lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
           print(paste("Procesando día:", fecha))
         }
       }
       
-      # Combinar todos los informes diarios en un único dataframe
+      # Procesar datos nuevos si existen
       if(length(lista_cambios) > 0) {
         datos_nuevos <- bind_rows(lista_cambios)
         
-        # Agregar datos de municipio y circuito corto
+        # Preparar datos nuevos con formato estándar
         estado_diario_datos_nuevos <- agregar_municipio_y_circuitocorto_df(datos_nuevos)
         estado_diario_datos_nuevos <- estado_diario_datos_nuevos %>% 
           select(gid, Circuito, Municipio, Circuito_corto, Posicion, Estado,
-                 Calle, Numero, Observaciones, Fecha, Direccion, Id_viaje, 
+                 Calle, Numero, Observaciones, Fecha, Direccion, Id_viaje,
                  the_geom, Id_motivo_inactiva, Acumulacion)
         
-        # Combinar con los datos históricos
-        estado_diario_global <- bind_rows(estado_diario_global, estado_diario_datos_nuevos)
+        # Eliminar posibles duplicados existentes para las mismas fechas
+        fechas_nuevas <- unique(estado_diario_datos_nuevos$Fecha)
+        estado_diario_filtrado <- estado_diario_global %>%
+          filter(!(Fecha %in% fechas_nuevas))
+        
+        # Unir el histórico filtrado con los nuevos datos
+        estado_diario_global <- bind_rows(estado_diario_filtrado, estado_diario_datos_nuevos)
       }
     }
     
@@ -122,7 +126,9 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   estado_diario_global <- funcion_agregar_the_geom_a_faltantes(
     estado_diario_global,
     ubis_existentes$ubicaciones_con_thegeom
-  )
+  ) %>%
+    distinct(gid, Fecha, .keep_all = TRUE) %>%
+    arrange(Fecha, gid)
   
   # Guardar resultado final
   saveRDS(estado_diario_global, file = ruta_datos)
@@ -655,4 +661,4 @@ arreglar_informediario_viejo <- function(){
   return(historico_estadodiario_versionanterior)
 }
 
-
+# nolint end: line_length_linter, object_name_linter
