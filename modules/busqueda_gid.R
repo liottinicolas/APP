@@ -3,6 +3,8 @@
 busquedaGidUI <- function(id) {
   ns <- NS(id)
   tagList(
+    # Agrego el estilo CSS para letra más chica al principio del UI
+    tags$style(HTML(".small-font { font-size: 14px !important; }")),
     # Panel que ocupa todo el ancho de la página
     fluidRow(
       column(
@@ -59,6 +61,11 @@ busquedaGidServer <- function(input, output, session) {
       filter(gid == input$txt_busqueda_gid) %>%
       filter(Fecha >= input$fecha_busqueda_gid[1]) %>%
       filter(Fecha <= input$fecha_busqueda_gid[2]) %>% 
+      left_join(
+        web_circuitos_planificados %>% 
+          select(circuito_corto, Frecuencia, Periodo),
+        by = c("Circuito_corto" = "circuito_corto")
+      ) %>%
       arrange(desc(Fecha),desc(Turno))
   })
   
@@ -93,78 +100,120 @@ busquedaGidServer <- function(input, output, session) {
         h3(paste("Dashboard para GID:", input$txt_busqueda_gid, "-", direccion)),
         
         # Panel de información básica
-        fluidRow(
-          column(
-            width = 3,
-            div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
-              h4("Resumen", style = "margin-top: 0;"),
-              p(sprintf("Total registros: %d", total_registros)),
-              p(sprintf("Primer registro: %s", primer_registro)),
-              p(sprintf("Último registro: %s", ultimo_registro))
-            )
-          ),
-          column(
-            width = 3,
-            div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
-              h4("Levantes", style = "margin-top: 0;"),
-              div(
-                style = sprintf("background-color: %s; height: 30px; width: %s%%; border-radius: 5px;", 
-                               ifelse(porc_levantados > 50, "#4CAF50", "#F44336"), porc_levantados)
-              ),
-              p(sprintf("%s%% levantados (%d de %d)", porc_levantados, levantados, total_registros)),
-              p(sprintf("No levantados: %d", no_levantados))
-            )
-          ),
-          column(
-            width = 3,
-            div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
-              h4("Llenado", style = "margin-top: 0;"),
-              p(sprintf("Promedio de llenado: %s%%", promedio_llenado)),
-              p(sprintf("Min: %s%% | Max: %s%%", 
-                       round(min(data$Porcentaje_llenado, na.rm = TRUE), 1),
-                       round(max(data$Porcentaje_llenado, na.rm = TRUE), 1)))
-            )
-          ),
-          column(
-            width = 3,
-            div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
-              h4("Incidencias", style = "margin-top: 0;"),
-              p(sprintf("Principales motivos:")),
-              renderText({
-                incidencias <- table(data$Incidencia)
-                if (length(incidencias) > 0) {
-                  top_incidencias <- sort(incidencias, decreasing = TRUE)[1:min(3, length(incidencias))]
-                  paste(names(top_incidencias), collapse = ", ")
-                } else {
-                  "Sin incidencias registradas"
-                }
-              })
-            )
-          )
-        ),
+        # fluidRow(
+        #   column(
+        #     width = 3,
+        #     div(
+        #       style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+        #       h4("Resumen", style = "margin-top: 0;"),
+        #       p(sprintf("Total registros: %d", total_registros)),
+        #       p(sprintf("Primer registro: %s", primer_registro)),
+        #       p(sprintf("Último registro: %s", ultimo_registro))
+        #     )
+        #   ),
+        #   column(
+        #     width = 3,
+        #     div(
+        #       style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+        #       h4("Levantes", style = "margin-top: 0;"),
+        #       div(
+        #         style = sprintf("background-color: %s; height: 30px; width: %s%%; border-radius: 5px;", 
+        #                        ifelse(porc_levantados > 50, "#4CAF50", "#F44336"), porc_levantados)
+        #       ),
+        #       p(sprintf("%s%% levantados (%d de %d)", porc_levantados, levantados, total_registros)),
+        #       p(sprintf("No levantados: %d", no_levantados))
+        #     )
+        #   ),
+        #   column(
+        #     width = 3,
+        #     div(
+        #       style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+        #       h4("Llenado", style = "margin-top: 0;"),
+        #       p(sprintf("Promedio de llenado: %s%%", promedio_llenado)),
+        #       p(sprintf("Min: %s%% | Max: %s%%", 
+        #                round(min(data$Porcentaje_llenado, na.rm = TRUE), 1),
+        #                round(max(data$Porcentaje_llenado, na.rm = TRUE), 1)))
+        #     )
+        #   ),
+        #   column(
+        #     width = 3,
+        #     div(
+        #       style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+        #       h4("Incidencias", style = "margin-top: 0;"),
+        #       p(sprintf("Principales motivos:")),
+        #       renderText({
+        #         incidencias <- table(data$Incidencia)
+        #         if (length(incidencias) > 0) {
+        #           top_incidencias <- sort(incidencias, decreasing = TRUE)[1:min(3, length(incidencias))]
+        #           paste(names(top_incidencias), collapse = ", ")
+        #         } else {
+        #           "Sin incidencias registradas"
+        #         }
+        #       })
+        #     )
+        #   )
+        # ),
         
         br(),
         
-        # Gráficos de distribución
+        # Fila superior: Distribución de llenado y Levantados, más juntos
         fluidRow(
           column(
             width = 6,
             div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+              style = "background-color: white; padding: 5px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); font-size: 0.9em; padding-right: 5px;",
               h4("Distribución de llenado", style = "margin-top: 0;"),
-              plotlyOutput(ns("grafico_llenado_distribucion"))
+              plotlyOutput(ns("grafico_llenado_distribucion"), height = "250px"),
+              div(
+                style = "font-size: 1.0em; color: #666; margin-top: 5px; text-align: center;",
+                "Muestra el porcentaje de llenado de contenedores que fueron levantados, independientemente de los días de acumulación sin contemplar si está o no en régimen"
+              )
             )
           ),
           column(
             width = 6,
             div(
-              style = "background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12);",
+              style = "background-color: white; padding: 5px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); font-size: 0.9em; padding-left: 5px;",
+              h4("Levantados", style = "margin-top: 0;"),
+              plotlyOutput(ns("grafico_levantados"), height = "250px"),
+              div(
+                style = "font-size: 1.0em; color: #666; margin-top: 5px; text-align: center;",
+                "Comparación de contenedores levantados vs no levantados en viajes realizados"
+              )
+            )
+          )
+        ),
+        # Espacio entre filas
+        div(style = "height: 25px;"),
+        # Fila inferior: Distribución de incidencias
+        fluidRow(
+          column(
+            width = 12,
+            div(
+              style = "background-color: white; padding: 5px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); font-size: 0.9em;",
               h4("Distribución de incidencias", style = "margin-top: 0;"),
-              plotlyOutput(ns("grafico_incidencias"))
+              plotlyOutput(ns("grafico_incidencias"), height = "250px"),
+              div(
+                style = "font-size: 1.0em; color: #666; margin-top: 5px; text-align: center;",
+                "Muestra las principales incidencias registradas en el período"
+              )
+            )
+          )
+        ),
+        # Espacio entre filas
+        div(style = "height: 25px;"),
+        # Nueva fila: Planificado vs Levantado
+        fluidRow(
+          column(
+            width = 12,
+            div(
+              style = "background-color: white; padding: 5px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); font-size: 0.9em;",
+              h4("Planificado vs Levantado", style = "margin-top: 0;"),
+              plotlyOutput(ns("grafico_planificado_vs_levantado"), height = "250px"),
+              div(
+                style = "font-size: 1.0em; color: #666; margin-top: 5px; text-align: center;",
+                "Compara la cantidad de levantados planificados vs realizados en el período seleccionado"
+              )
             )
           )
         )
@@ -181,41 +230,51 @@ busquedaGidServer <- function(input, output, session) {
     
     # Contar por valor de llenado
     distribucion_llenado <- data %>%
+      filter(!is.na(Porcentaje_llenado)) %>%
       mutate(
-        Porcentaje_llenado = ifelse(is.na(Porcentaje_llenado), "No levantado", 
-                                   paste0(round(Porcentaje_llenado), "%"))
+        valor_llenado = round(Porcentaje_llenado),
+        Porcentaje_llenado = paste0(valor_llenado, "%"),
+        etiqueta = paste0(valor_llenado, "% llenado")
       ) %>%
-      count(Porcentaje_llenado) %>%
-      arrange(desc(n))
+      count(Porcentaje_llenado, etiqueta, valor_llenado) %>%
+      arrange(desc(valor_llenado)) %>%
+      select(-valor_llenado)
     
     # Si hay demasiadas categorías, agrupar las menos comunes
     if (nrow(distribucion_llenado) > 5) {
       top_valores <- distribucion_llenado[1:5,]
       otras <- data.frame(
         Porcentaje_llenado = "Otros",
+        etiqueta = "Otros",
         n = sum(distribucion_llenado$n[6:nrow(distribucion_llenado)])
       )
       distribucion_llenado <- rbind(top_valores, otras)
     }
     
-    # Definir colores según el valor
-    colores <- sapply(distribucion_llenado$Porcentaje_llenado, function(x) {
-      if (x == "100%") return("#000000")  # Negro
-      if (x == "75%") return("#FF0000")   # Rojo
-      if (x == "50%") return("#FFD700")   # Amarillo
-      if (x == "25%") return("#00FF00")   # Verde
-      if (x == "No levantado") return("#808080")  # Gris
-      return("#A9A9A9")  # Gris claro para otros valores
+    # Paleta de azules (más oscuro para mayor %)
+    suppressWarnings({
+      if (!requireNamespace("RColorBrewer", quietly = TRUE)) install.packages("RColorBrewer")
     })
+    library(RColorBrewer)
+    n_cats <- nrow(distribucion_llenado)
+    # Si hay "Otros", que sea gris claro
+    tiene_otros <- any(distribucion_llenado$Porcentaje_llenado == "Otros")
+    n_blues <- ifelse(tiene_otros, n_cats - 1, n_cats)
+    paleta_azul <- rev(colorRampPalette(brewer.pal(9, "Blues")[3:9])(n_blues))  # Empezamos desde el tercer color
+    if (tiene_otros) {
+      colores_azules <- c(paleta_azul, "#A9A9A9")  # Gris más oscuro
+    } else {
+      colores_azules <- paleta_azul
+    }
     
     # Crear gráfico de torta
     p <- plot_ly(distribucion_llenado, 
-                labels = ~Porcentaje_llenado, 
+                labels = ~etiqueta, 
                 values = ~n, 
                 type = 'pie',
                 textinfo = 'label+percent',
                 insidetextorientation = 'radial',
-                marker = list(colors = colores)) %>%
+                marker = list(colors = colores_azules)) %>%
       layout(
         title = "",
         showlegend = TRUE,
@@ -239,25 +298,42 @@ busquedaGidServer <- function(input, output, session) {
     incidencias_df <- data %>%
       filter(!is.na(Incidencia) & Incidencia != "") %>%
       count(Incidencia) %>%
-      arrange(desc(n))
+      arrange(n)  # De menor a mayor para barras horizontales
     
     # Si hay demasiadas categorías, agrupar las menos comunes
     if (nrow(incidencias_df) > 5) {
-      top_incidencias <- incidencias_df[1:5,]
+      top_incidencias <- incidencias_df[(nrow(incidencias_df)-4):nrow(incidencias_df),]
       otras <- data.frame(
         Incidencia = "Otras",
-        n = sum(incidencias_df$n[6:nrow(incidencias_df)])
+        n = sum(incidencias_df$n[1:(nrow(incidencias_df)-5)])
       )
-      incidencias_df <- rbind(top_incidencias, otras)
+      incidencias_df <- rbind(otras, top_incidencias)
     }
     
-    # Crear gráfico de torta
-    p <- plot_ly(incidencias_df, labels = ~Incidencia, values = ~n, type = 'pie',
-                textinfo = 'label+percent',
-                insidetextorientation = 'radial') %>%
-      layout(title = "")
+    # Paleta de azules: más oscuro para mayor cantidad
+    suppressWarnings({
+      if (!requireNamespace("RColorBrewer", quietly = TRUE)) install.packages("RColorBrewer")
+    })
+    library(RColorBrewer)
+    n_cats <- nrow(incidencias_df)
+    paleta_azul <- colorRampPalette(brewer.pal(9, "Blues")[3:9])(n_cats)  # Empezamos desde el tercer color
     
-    p
+    plot_ly(
+      incidencias_df,
+      x = ~n,
+      y = ~reorder(Incidencia, n),
+      type = 'bar',
+      orientation = 'h',
+      marker = list(color = paleta_azul),
+      text = ~n,
+      textposition = 'auto'
+    ) %>%
+      layout(
+        title = "",
+        xaxis = list(title = "Cantidad"),
+        yaxis = list(title = ""),
+        margin = list(l = 100)
+      )
   })
   
   # Mostrar los datos filtrados en la tabla
@@ -285,8 +361,8 @@ busquedaGidServer <- function(input, output, session) {
                            list(width = '10%', targets = 0,className = 'dt-center'),  # Dia
                            list(width = '5%', targets = 1,className = 'dt-center'),  # Circuito
                            list(width = '5%', targets = 2,className = 'dt-center'),  # Posicion
-                           list(width = '5%', targets = 3,className = 'dt-center'), # Direccion
-                           list(width = '20%', targets = 4), #Levante
+                           list(width = '20%', targets = 3,className = 'dt-center'), # Direccion (más ancha)
+                           list(width = '5%', targets = 4), # Levante (más chica)
                            list(targets = 5,className = 'dt-center'), # Turno
                            list(width = '5%', targets = 6,className = 'dt-center'), # Hora
                            list(width = '5%', targets = 7,className = 'dt-center'), # ID_Viaje
@@ -295,7 +371,8 @@ busquedaGidServer <- function(input, output, session) {
                            list(width = '20%',targets = 10,className = 'dt-center') # Condicion
                          )
           ),
-          rownames = FALSE
+          rownames = FALSE,
+          class = "compact stripe hover small-font"
         ) %>%
         formatStyle(
           'Levantado_real',
@@ -303,16 +380,132 @@ busquedaGidServer <- function(input, output, session) {
         ) %>%
         formatStyle(
           'Porcentaje_llenado',
-          background = styleColorBar(c(0, 100), '#90caf9'),
-          backgroundSize = '98% 88%',
-          backgroundRepeat = 'no-repeat',
-          backgroundPosition = 'center'
+          # background = styleColorBar(c(0, 100), '#90caf9'),
+          # backgroundSize = '98% 88%',
+          # backgroundRepeat = 'no-repeat',
+          # backgroundPosition = 'center'
         )
     } else {
       datatable(data.frame(message = "Sin datos para mostrar"),
                 options = list(pageLength = 1, dom = 't'),
                 rownames = FALSE)
     }
+  })
+
+  output$grafico_levantados <- renderPlotly({
+    req(llenado())
+    data <- llenado()
+    if (nrow(data) == 0) return(NULL)
+
+    levantados <- sum(!is.na(data$Porcentaje_llenado))
+    no_levantados <- sum(is.na(data$Porcentaje_llenado))
+
+    df_levantados <- data.frame(
+      Estado = c("Levantado", "No levantado"),
+      Cantidad = c(levantados, no_levantados)
+    )
+
+    # Paleta de azules más oscura
+    suppressWarnings({
+      if (!requireNamespace("RColorBrewer", quietly = TRUE)) install.packages("RColorBrewer")
+    })
+    library(RColorBrewer)
+    colores_azules <- colorRampPalette(brewer.pal(9, "Blues")[4:9])(2)  # Usando colores más oscuros
+
+    plot_ly(
+      df_levantados,
+      labels = ~Estado,
+      values = ~Cantidad,
+      type = 'pie',
+      textinfo = 'label+percent',
+      insidetextorientation = 'radial',
+      marker = list(colors = colores_azules)
+    ) %>%
+      layout(title = "")
+  })
+
+  # Gráfico de Planificado vs Levantado
+  output$grafico_planificado_vs_levantado <- renderPlotly({
+    req(llenado())
+    data <- llenado()
+    
+    if (nrow(data) == 0) return(NULL)
+    
+    # Calcular levantados por mes
+    levantados_mes <- data %>%
+      filter(!is.na(Porcentaje_llenado)) %>%
+      mutate(mes = format(Fecha, "%Y-%m")) %>%
+      group_by(mes) %>%
+      reframe(levantados = n()) %>%
+      arrange(mes)
+    
+    # Calcular planificado por mes considerando meses parciales
+    planificado_mes <- data %>%
+      mutate(mes = format(Fecha, "%Y-%m")) %>%
+      group_by(mes) %>%
+      reframe(
+        primer_dia = min(Fecha),
+        ultimo_dia = max(Fecha),
+        periodo = first(Periodo)
+      ) %>%
+      mutate(
+        # Para el primer mes, contar desde el primer día registrado
+        dias_primer_mes = as.numeric(format(primer_dia, "%d")),
+        # Para el último mes, contar hasta el último día registrado
+        dias_ultimo_mes = as.numeric(format(ultimo_dia, "%d")),
+        # Para meses intermedios, usar todos los días del mes
+        dias_mes = case_when(
+          mes == min(mes) ~ as.numeric(format(as.Date(paste0(mes, "-01")) + months(1) - 1, "%d")) - dias_primer_mes + 1,
+          mes == max(mes) ~ dias_ultimo_mes,
+          TRUE ~ as.numeric(format(as.Date(paste0(mes, "-01")) + months(1) - 1, "%d"))
+        ),
+        planificado = round(dias_mes / periodo)
+      ) %>%
+      select(mes, planificado) %>%
+      arrange(mes)
+    
+    # Unir los datos
+    datos_comparacion <- levantados_mes %>%
+      left_join(planificado_mes, by = "mes") %>%
+      mutate(
+        mes_formateado = format(as.Date(paste0(mes, "-01")), "%b %Y"),
+        fecha_orden = as.Date(paste0(mes, "-01"))
+      ) %>%
+      arrange(fecha_orden) %>%
+      select(mes = mes_formateado, levantados, planificado)
+    
+    # Crear gráfico de barras horizontales
+    plot_ly(datos_comparacion) %>%
+      add_trace(
+        y = ~mes,
+        x = ~planificado,
+        name = "Planificado",
+        type = "bar",
+        orientation = "h",
+        marker = list(color = "#2c3e50")  # Color más oscuro para planificado
+      ) %>%
+      add_trace(
+        y = ~mes,
+        x = ~levantados,
+        name = "Levantado",
+        type = "bar",
+        orientation = "h",
+        marker = list(color = "#3498db")  # Color más oscuro para levantado
+      ) %>%
+      layout(
+        title = "",
+        xaxis = list(title = "Cantidad"),
+        yaxis = list(
+          title = "",
+          categoryorder = "array",
+          categoryarray = rev(~mes)
+        ),
+        barmode = "group",
+        legend = list(
+          orientation = "h",
+          y = -0.2
+        )
+      )
   })
 }
 

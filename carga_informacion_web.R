@@ -1,3 +1,4 @@
+# nolint start: line_length_linter, object_name_linter
 
   
   ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
@@ -16,3 +17,9 @@
   
   ruta_RDS_ubicaciones_conthegeom <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds")
   ubicaciones_existentes <- readRDS(ruta_RDS_ubicaciones_conthegeom)
+
+  # Carga de circuitos planificados
+  ruta_RDS_circuitos_planificados <- file.path(ruta_proyecto, "scripts/para_mapear/circuitos_planificados.rds")
+  web_circuitos_planificados <- readRDS(ruta_RDS_circuitos_planificados)
+
+# nolint end

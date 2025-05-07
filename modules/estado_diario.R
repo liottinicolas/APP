@@ -121,6 +121,13 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
 estadoDiarioUI <- function(id) {
   ns <- NS(id)
   tagList(
+    # Título principal
+    fluidRow(
+      column(
+        width = 12,
+        uiOutput(ns("titulo_principal"))
+      )
+    ),
     # Dashboard de estadísticas
     fluidRow(
       column(
@@ -154,40 +161,53 @@ estadoDiarioUI <- function(id) {
         )
       )
     ),
-    fluidRow(
-      column(
-        width = 3,
-        dateInput(
-          ns("filtro_fecha"),
-          "Selecciona una fecha:",
-          value = ultima_fecha_registro + 1,
-          min = as.Date("2025-02-16"),
-          max = ultima_fecha_registro + 1,
-          width = '200px'
+    div(
+      class = "well",
+      style = "background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;",
+      fluidRow(
+        column(
+          width = 3,
+          dateInput(
+            ns("filtro_fecha"),
+            "Selecciona una fecha:",
+            value = ultima_fecha_registro + 1,
+            min = as.Date("2025-02-16"),
+            max = ultima_fecha_registro + 1,
+            width = '200px'
+          )
         ),
-        downloadButton(
-          ns("descargar_csv"),
-          "Descargar CSV",
-          class = "btn btn-primary",
-          style = "margin-top: 10px; width: 200px;"
+        column(
+          width = 3,
+          uiOutput(ns("dias_min_ui"))
         ),
-        uiOutput(ns("diasUI")),
-      ),
-      column(
-        width = 3,
-        checkboxGroupInput(
-          ns("checkbox_activoinactivo"),
-          "Con/sin mantenimiento",
-          c(
-            "Activos" = "Activos",
-            "Inactivos" = "Mantenimiento"
-          ),
-          selected = "Activos"
+        column(
+          width = 3,
+          uiOutput(ns("dias_max_ui"))
+        ),
+        column(
+          width = 3,
+          checkboxGroupInput(
+            ns("checkbox_activoinactivo"),
+            "Con/sin mantenimiento",
+            c(
+              "Activos" = "Activos",
+              "Inactivos" = "Mantenimiento"
+            ),
+            selected = "Activos"
+          )
         )
       ),
-      column(
-        width = 6,
-        div(style = "height: 100%;")
+      fluidRow(
+        column(
+          width = 12,
+          style = "text-align: left;",
+          downloadButton(
+            ns("descargar_csv"),
+            "Descargar CSV",
+            class = "btn btn-primary",
+            style = "margin-top: 10px; width: 200px;"
+          )
+        )
       )
     ),
     fluidRow(
@@ -214,6 +234,14 @@ estadoDiarioUI <- function(id) {
 estadoDiarioServer <- function(input, output, session) {
   ns <- session$ns
   
+  # Título reactivo
+  output$titulo_principal <- renderUI({
+    h3(paste("Informe diario de Gestión", 
+             format(input$filtro_fecha, "%d/%m/%Y"),
+             "a las 06:00 am"),
+       style = "text-align: center; color: #2c3e50; margin-bottom: 30px; font-weight: bold;")
+  })
+  
   # Reactiva para las estadísticas diarias
   estadisticas_diarias <- reactive({
     req(input$filtro_fecha)
@@ -236,13 +264,19 @@ estadoDiarioServer <- function(input, output, session) {
   # Reactiva para el estado diario
   estado_diario <- reactive({
     req(input$filtro_fecha)
-    req(input$dias, length(input$dias) == 2, !any(is.na(input$dias)))
+    req(input$dias_min, input$dias_max)
+    
+    # Validar que el mínimo no sea mayor que el máximo
+    if (input$dias_min > input$dias_max) {
+      showNotification("El valor mínimo no puede ser mayor que el máximo", type = "error")
+      return(web_historico_estado_diario[0, ])
+    }
     
     tryCatch({
       datos_filtrados <- filtrar_datos_estado_diario(
         web_historico_estado_diario,
         input$filtro_fecha,
-        input$dias,
+        c(input$dias_min, input$dias_max),
         input$checkbox_activoinactivo
       )
       
@@ -278,15 +312,28 @@ estadoDiarioServer <- function(input, output, session) {
     })
   })
   
-  # UI para el slider de días
-  output$diasUI <- renderUI({
+  # UI para los inputs de días
+  output$dias_min_ui <- renderUI({
     req(max_acumulacion())
-    sliderInput(
-      ns('dias'),
-      'Días de acumulación',
+    numericInput(
+      ns('dias_min'),
+      'Días mínimos',
       min = 1,
       max = max_acumulacion(),
-      value = c(1, max_acumulacion())
+      value = 1,
+      width = '100px'
+    )
+  })
+  
+  output$dias_max_ui <- renderUI({
+    req(max_acumulacion())
+    numericInput(
+      ns('dias_max'),
+      'Días máximos',
+      min = 1,
+      max = max_acumulacion(),
+      value = max_acumulacion(),
+      width = '100px'
     )
   })
   
