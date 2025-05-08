@@ -1,0 +1,7 @@
+[2025-03-31 22:07:24] [INFO] Iniciando script carga_BD.R en modo desarrollo
+[2025-03-31 22:07:30] [INFO] Archivo cargado con éxito: global.R
+[2025-03-31 22:07:30] [INFO] Archivo cargado con éxito: funciones_carga_datos.R
+[2025-03-31 22:07:30] [INFO] Archivo cargado con éxito: funciones_utiles.R
+[2025-03-31 22:07:30] [INFO] Archivo cargado con éxito: funciones_para_web.R
+[2025-03-31 22:07:30] [ERROR] Error en al cargar carga_datos.R : objeto 'ruta_RDS_planillas_procesadas' no encontrado
+Detalles: actualizar_planillas_RDS ruta_proyecto rutas_llenado$ruta_funciones rutas_llenado$ruta_carpeta_archivos rutas_llenado$ruta_RDS_datos

@@ -1,3 +1,6 @@
+# nolint start: line_length_linter, object_name_linter
+
+
 # Funcion para obtener las ubicaciones para un dia determinado
 # El día de parametro es el dia del informe
 funcion_obtener_ubicaciones_por_dia <- function(dia){
@@ -440,7 +443,7 @@ imprimir_repetidos <- function(df){
 
 
 
-
+# incidencias_por_gid <- historico_incidencias_completas
 
 funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por_gid,fecha_consulta,responsable){
   incidencias_del_dia <- incidencias_por_gid %>% 
@@ -448,6 +451,7 @@ funcion_imprimir_incidencias_del_dia_por_responsable <- function(incidencias_por
     filter(Responsable == responsable) 
   
 }
+
 
 # inicio <- as.Date("2025-02-20")
 # fin <- max(historico_estado_diario$Fecha)
@@ -572,8 +576,118 @@ funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,est
   df_retorno_final <- df_retorno %>%
     left_join(the_geom_mas_cercano, by = c("gid", "Fecha_incidencia"))
   
+  # Encontrar la fecha más antigua del dataframe
+  fecha_mas_antigua <- min(df_retorno_final$Fecha_incidencia, na.rm = TRUE)
   
-  return(df_retorno_final)
+  # Retornar tanto el dataframe como la fecha más antigua
+  return(list(datos = df_retorno_final, fecha_antigua = fecha_mas_antigua))
+  
+}
+
+funcion_mostrar_responsables_por_incidencias <- function(incidencias_por_gid,estado_diario,fin,responsable){
+  
+  # Calculo las incidencias que se generaron el día anterior
+  incidencias_del_dia <- funcion_imprimir_incidencias_del_dia_por_responsable(incidencias_por_gid,fin,responsable)
+  
+  ## calculo del día, los días de acumulación.
+  acumulacion_select <- estado_diario %>%
+    select(gid, Fecha, Acumulacion,Estado)
+
+  incidencias_del_dia <- incidencias_del_dia %>%
+    left_join(acumulacion_select, by = c("gid", "Fecha")) %>% 
+    rename(Fecha_incidencia = Fecha)
+  
+  # Elimino las que ya fueron solucionadas
+  incidencias_del_dia_sinsolucion <- incidencias_del_dia %>% 
+    filter(Acumulacion > 1)
+  
+  # Calculo todas las indicencias anteriores al día anterior
+  incidencias_historico_sin_ultimo_dia <- incidencias_por_gid %>% 
+    filter(Fecha < fin) %>% 
+    filter(Responsable == responsable) %>% 
+    rename(Fecha_incidencia = Fecha)
+  
+  # Hallo el valor de acumulacion al dia de hoy.
+  informe_del_dia <- estado_diario %>% 
+    filter(Fecha == fin)
+
+    # Le agrego a las incidencias historicas, el día de acumulacion a la fecha de la consulta.
+  # y al día de hoy en otra columna.
+  incidencias_actualizadas_sin_ultimo_dia <- incidencias_historico_sin_ultimo_dia %>%
+    left_join(
+      informe_del_dia %>% 
+        select(gid, Fecha, Acumulacion,Estado) %>%
+        rename(fecha_informe_dia_actual = Fecha,
+               Acumulacion_dia_actual = Acumulacion),
+      by = "gid"
+    ) %>% 
+    left_join(relationship = "many-to-many",
+      estado_diario %>% 
+        select(gid, Fecha, Acumulacion) %>%
+        rename(fecha_informe_dia_incidencia = Fecha,
+               Acumulacion_dia_incidencia = Acumulacion),
+      by = c("gid" = "gid", "Fecha_incidencia" = "fecha_informe_dia_incidencia")
+    ) %>% 
+    # rename(Acumulacion_dia_incidencia = Acumulacion_dia_actual) %>% 
+    mutate(Diferencia_dias = fecha_informe_dia_actual - Fecha_incidencia) %>% 
+    mutate(Diferencias_dias_de_acumulacion = Acumulacion_dia_actual - Acumulacion_dia_incidencia) %>% 
+    filter(Acumulacion_dia_incidencia > 1)
+  
+  
+  ## Filtro aquellas incidencias que no fueron solucionados
+  # Resto las fechas y los dias de acumulacion, si da igual es porque no paso nada
+  incidencias_actualizadas_sin_ultimo_dia <- incidencias_actualizadas_sin_ultimo_dia %>%
+    filter(as.numeric(Diferencia_dias, units = "days") == Diferencias_dias_de_acumulacion) %>% 
+    ### Filtro las que están en mantenimiento
+    filter(is.na(Estado)) %>% 
+    select(Fecha_incidencia,Diferencia_dias,gid,Estado,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion_dia_actual) %>% 
+    rename(Acumulacion = Acumulacion_dia_actual)
+  
+  # incidencias_actualizadas_sin_ultimo_dia <- incidencias_final %>% 
+
+  
+  incidencias_del_dia_sinsolucion <- incidencias_del_dia_sinsolucion %>% 
+    mutate(Diferencia_dias = as.difftime(0, units = "days")) %>% 
+    select(Fecha_incidencia,Diferencia_dias,gid,Estado,Municipio,Circuito_corto,Posicion,Direccion,Observaciones,Incidencia,Acumulacion)
+  
+  incidencias_completas <- bind_rows(incidencias_actualizadas_sin_ultimo_dia,incidencias_del_dia_sinsolucion) %>% 
+    mutate(Diferencia_dias = Diferencia_dias + 1) %>% 
+    arrange(desc(Diferencia_dias),Circuito_corto) %>% 
+    filter(is.na(Estado))
+  
+  df_sin_duplicados <- incidencias_completas %>%
+    group_by(gid, Fecha_incidencia) %>%
+    filter(n() == 1) %>%  # Sólo se conservan las combinaciones que aparecen una única vez
+    ungroup()
+  
+  df_retorno <- df_sin_duplicados %>%
+    group_by(gid) %>%
+    filter(Fecha_incidencia == min(Fecha_incidencia)) %>%
+    ungroup()
+
+  buscar_ubis <- ubicaciones_existentes$ubicaciones_con_thegeom
+  
+  # Unir y calcular diferencia de días entre fechas
+  unido <- df_retorno %>%
+    left_join(buscar_ubis, by = "gid") %>%
+    mutate(dif_dias = abs(as.numeric(Fecha - Fecha_incidencia)))
+  
+  # Seleccionar el the_geom con menor diferencia de fecha por gid + Fecha_incidencia
+  the_geom_mas_cercano <- unido %>%
+    group_by(gid, Fecha_incidencia) %>%
+    slice_min(order_by = dif_dias, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(gid, Fecha_incidencia, the_geom)
+  
+  # Unir el resultado a df_retorno
+  df_retorno_final <- df_retorno %>%
+    left_join(the_geom_mas_cercano, by = c("gid", "Fecha_incidencia"))
+  
+  # Encontrar la fecha más antigua del dataframe
+  fecha_mas_antigua <- min(df_retorno_final$Fecha_incidencia, na.rm = TRUE)
+  
+  # Retornar tanto el dataframe como la fecha más antigua
+  return(list(datos = df_retorno_final, fecha_antigua = fecha_mas_antigua))
   
 }
 
@@ -592,15 +706,16 @@ funcion_exportar_incidencias_grua_o_pluma <- function(df,tipo_incidencia){
   # Ajustar automáticamente el ancho de todas las columnas (1 a ncol(df_filtrado))
   setColWidths(wb, sheet = "Datos", cols = 1:ncol(df), widths = "auto")
   
+  # Generar el nombre del archivo
   if (tipo_incidencia == "Grua") {
-    nombre_archivo <- "sobrepesos_actualizados.xlsx"
+    base_nombre <- "sobrepesos_actualizados"
   } else if (tipo_incidencia == "Pluma"){
     nombre_archivo <- "pluma_actualizados.xlsx"
   }
   
   saveWorkbook(wb, file = nombre_archivo, overwrite = TRUE)
   
-  
+  return(wb)
 }
 
 imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
@@ -623,3 +738,70 @@ imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
               fileEncoding = "ISO-8859-1")
 }
 
+
+#' Exporta datos de un GID específico a Excel
+#'
+#' @param gid_buscado El identificador único a buscar
+#' @return No devuelve valor, genera archivo Excel
+funcion_imprimir_datosporgid <- function(gid_buscado) {
+  tryCatch({
+    escribir_log("INFO", paste("Exportando datos para GID:", gid_buscado))
+    
+    imprimir <- historico_completo_llenado_incidencias %>% 
+      filter(gid == gid_buscado) %>% 
+      select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
+             -Circuito, -DB, -Numero_caja)
+    
+    wb <- createWorkbook()
+    
+    # Añadir una hoja
+    addWorksheet(wb, "Datos")
+    
+    # Escribir el data frame como tabla con formato
+    writeDataTable(wb, sheet = "Datos", x = imprimir, 
+                  tableStyle = "TableStyleLight9")
+    
+    # Ajustar automáticamente el ancho de todas las columnas
+    setColWidths(wb, sheet = "Datos", cols = 1:ncol(imprimir), 
+                 widths = "auto")
+    
+    # Crear un estilo para fechas
+    dateStyle <- createStyle(numFmt = "dd/mm/yyyy")
+    
+    # Aplicar estilo a la columna de fechas
+    addStyle(wb, sheet = "Datos", style = dateStyle, 
+             cols = 2, rows = 2:(nrow(imprimir) + 1), 
+             gridExpand = TRUE)
+    
+    nombre_archivo <- file.path(CONFIGURACION$DIRECTORIO_SALIDA, 
+                               paste0("datos_gid_", gid_buscado, ".xlsx"))
+    saveWorkbook(wb, file = nombre_archivo, overwrite = TRUE)
+    
+    escribir_log("INFO", paste("Archivo generado:", nombre_archivo))
+  }, error = function(e) {
+    manejar_error(e, paste("exportar datos para GID", gid_buscado))
+  })
+}
+
+
+#' Obtiene datos de un GID específico
+#'
+#' @param gid_buscado El identificador único a buscar
+#' @return Data frame con los datos del GID
+funcion_obtener_datosporgid <- function(gid_buscado) {
+  tryCatch({
+    escribir_log("DEBUG", paste("Obteniendo datos para GID:", gid_buscado))
+    
+    imprimir <- historico_completo_llenado_incidencias %>% 
+      filter(gid == gid_buscado) %>% 
+      select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
+             -Circuito, -DB, -Numero_caja)
+    
+    return(imprimir)
+  }, error = function(e) {
+    manejar_error(e, paste("obtener datos para GID", gid_buscado))
+    return(NULL)
+  })
+}
+
+# nolint end

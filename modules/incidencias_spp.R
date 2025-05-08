@@ -40,10 +40,10 @@ incidenciasSPPServer <- function(input, output, session) {
   
   filtrado_reactivo_spp <- reactive({
     req(input$fecha_spp)
-    historico_incidencias_por_gid %>%
+    web_historico_completo_llenado_incidencias %>%
       filter(Responsable == "Seguimiento SPP") %>% 
-      filter(Fecha_incidencia >= input$fecha_spp[1]) %>% 
-      filter(Fecha_incidencia <= input$fecha_spp[2]) %>% 
+      filter(Fecha >= input$fecha_spp[1]) %>% 
+      filter(Fecha <= input$fecha_spp[2]) %>% 
       filter(Incidencia %in% input$checkbox_spp)  # Filtra según los valores seleccionados en el checkbox
     
   })
@@ -60,9 +60,8 @@ incidenciasSPPServer <- function(input, output, session) {
   # Mostrar los datos filtrados en la tabla
   output$tabla_spp <- renderDT({
     filtrado_reactivo_spp() %>% 
-      select(Fecha_incidencia, gid, Municipio, Circuito_corto, Posicion ,Direccion, Incidencia) %>% 
-      rename(Fecha = Fecha_incidencia,
-             Circuito = Circuito_corto) %>% 
+      select(Fecha, gid, Municipio, Circuito_corto, Posicion ,Direccion, Incidencia) %>% 
+      rename(Circuito = Circuito_corto) %>% 
       datatable(
         filter = "top",         # Agrega filtros en la parte superior de cada columna
         options = list(lengthMenu = c(10, 25, 50, 100),
@@ -99,7 +98,7 @@ incidenciasSPPServer <- function(input, output, session) {
     content = function(file) {
       
       datos <- filtrado_reactivo_spp() %>% 
-        select(Fecha_incidencia, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
+        select(Fecha, gid, Municipio, Circuito_corto, Posicion, Direccion, Incidencia) %>% 
         rename(Circuito = Circuito_corto)
       
       write.csv(datos, file, row.names = FALSE)

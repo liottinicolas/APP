@@ -12,17 +12,17 @@
 
 eliminar_ultimo_dia_llenado <- function(df) {
   # Encontrar la fecha más alta en la columna 'dia'
-  
-  # df$dia <- as.Date(df$dia)
-  
   primer_dia <- min(df$dia, na.rm = TRUE)  
   ultimo_dia <- max(df$dia, na.rm = TRUE)
   
-  diferencia_dias <- as.integer(ultimo_dia - primer_dia)
+  # Obtener la fecha actual
+  fecha_actual <- Sys.Date()
   
-    # Filtrar el dataframe para eliminar todas las filas que coincidan con esa fecha
+  # Solo eliminar el último día si hay datos del día actual
+  if (ultimo_dia == fecha_actual) {
     df <- df %>% 
       filter(dia < ultimo_dia)
+  }
   
   return(df)
 }

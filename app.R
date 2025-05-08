@@ -1,12 +1,19 @@
+# nolint start: line_length_linter, object_name_linter
+
+
 library(shiny)
 library(shinydashboard)
 library(leaflet)
 library(DT)
 
+source("config.R")
+source("logging.R")
 source("global.R")
-source("carga_BD.R")
+source("carga_informacion_web.R")
+source("funciones_para_web.R")
+source("funciones_utiles.R")
 
-
+# source("carga_BD.R")
 
 # Cargar módulos
 source("modules/estado_diario.R")
@@ -25,7 +32,7 @@ ui <- dashboardPage(
   skin = "green",  # Cambia el color principal del tema
   
   dashboardHeader(title = "Incidencias"),
-  
+      
   dashboardSidebar(
     sidebarMenu(
       menuItem("Estado diario", tabName = "estado_diario", icon = icon("globe")),
@@ -37,7 +44,7 @@ ui <- dashboardPage(
                menuSubItem("Mantenimiento", tabName = "incidencias_mantenimiento", icon = icon("wrench")),
                menuSubItem("Operativa", tabName = "incidencias_operativa", icon = icon("road"))
                ),
-      menuItem("Historicos incidencias", tabName = "historico_incidencias", icon = icon("tasks")),
+      #menuItem("Historicos incidencias", tabName = "historico_incidencias", icon = icon("tasks")),
       menuItem("Condicion contenedor", tabName = "condicion_contenedor", icon = icon("signal"))
     )
   ),
@@ -73,3 +80,7 @@ server <- function(input, output, session) {
 }
   
 shinyApp(ui, server)
+
+# funcion_imprimir_datosporgid(105531)
+
+# nolint end

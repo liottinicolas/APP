@@ -1,54 +1,215 @@
+# nolint start: line_length_linter, object_name_linter
+
+#' Módulo de Estado Diario
+#' 
+#' Este módulo permite visualizar y analizar el estado diario de puntos en un mapa interactivo.
+#' Incluye filtros por fecha, acumulación y estado de mantenimiento.
+
+# Constantes
+COLORES_ACUMULACION <- list(
+  "1-2" = "green",
+  "3" = "yellow",
+  "4" = "orange",
+  "5" = "red",
+  "6+" = "black"
+)
+
+#' Función para determinar el color según la acumulación
+#' @param acumulacion Número de días de acumulación
+#' @return Color correspondiente
+determinar_color_acumulacion <- function(acumulacion) {
+  if (acumulacion %in% c(1, 2)) return(COLORES_ACUMULACION[["1-2"]])
+  if (acumulacion == 3) return(COLORES_ACUMULACION[["3"]])
+  if (acumulacion == 4) return(COLORES_ACUMULACION[["4"]])
+  if (acumulacion == 5) return(COLORES_ACUMULACION[["5"]])
+  return(COLORES_ACUMULACION[["6+"]])
+}
+
+#' Función para filtrar datos según los criterios seleccionados
+#' @param datos DataFrame con los datos históricos
+#' @param fecha Fecha seleccionada
+#' @param dias Vector con rango de días
+#' @param estados Vector con estados seleccionados
+#' @return DataFrame filtrado
+filtrar_datos_estado_diario <- function(datos, fecha, dias, estados) {
+  if (is.null(estados) || length(estados) == 0) {
+    return(datos[0, ])
+  }
+  
+  datos_filtrados <- datos %>%
+    filter(Fecha == as.Date(fecha) - 1) %>%
+    filter(Acumulacion >= dias[1], Acumulacion <= dias[2])
+  
+  if (length(estados) == 1) {
+    if (estados == "Activos") {
+      datos_filtrados <- datos_filtrados %>% filter(is.na(Estado))
+    } else if (estados == "Mantenimiento") {
+      datos_filtrados <- datos_filtrados %>% filter(Estado == "Mantenimiento")
+    }
+  }
+  
+  return(datos_filtrados)
+}
+
+#' Función para calcular estadísticas diarias
+#' @param datos DataFrame con los datos históricos
+#' @param fecha Fecha seleccionada
+#' @return Lista con estadísticas
+calcular_estadisticas_diarias <- function(datos, fecha) {
+  # Manejar posibles errores
+  tryCatch({
+    # Convertir explícitamente la fecha
+    fecha_filtro <- as.Date(fecha) - 1
+    
+    # Verificar que hay datos para la fecha
+    datos_dia <- datos %>%
+      filter(Fecha == fecha_filtro)
+    
+    # Si no hay datos, retornar valores en cero
+    if (nrow(datos_dia) == 0) {
+      return(list(
+        levantados = 0,
+        mantenimiento = 0,
+        activos = 0
+      ))
+    }
+    
+    # Calcular estadísticas
+    contenedores_levantados <- tryCatch({
+      datos_dia %>%
+        filter(Acumulacion == 1) %>%
+        filter(is.na(Estado)) %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores levantados:", e$message))
+      return(0)
+    })
+    
+    contenedores_mantenimiento <- tryCatch({
+      datos_dia %>%
+        filter(Estado == "Mantenimiento") %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores en mantenimiento:", e$message))
+      return(0)
+    })
+    
+    contenedores_activos <- tryCatch({
+      datos_dia %>%
+        filter(is.na(Estado)) %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores activos:", e$message))
+      return(0)
+    })
+    
+    return(list(
+      levantados = contenedores_levantados,
+      mantenimiento = contenedores_mantenimiento,
+      activos = contenedores_activos
+    ))
+  }, error = function(e) {
+    warning(paste("Error general en cálculo de estadísticas:", e$message))
+    return(list(
+      levantados = 0,
+      mantenimiento = 0,
+      activos = 0
+    ))
+  })
+}
+
 estadoDiarioUI <- function(id) {
   ns <- NS(id)
   tagList(
-    
+    # Título principal
     fluidRow(
       column(
-        
-        width = 3,
-    
-    dateInput(
-      ns("filtro_fecha"),
-      "Selecciona una fecha:",
-      value = ultima_fecha_registro+1,
-      min = as.Date("2025-02-16"),
-      max = ultima_fecha_registro+1,
-      width = '200px'
-    ),
-    ## Defino así el output para modificarlo desde el servidor.
-    ## Lo calcula según el máximo.
-    uiOutput(ns("diasUI"))
-    ,
-
-    #style = "background-color: #f9f9f9; height: 100%; padding: 15px;" # Color de fondo y espacio interno
-    
-    ),
-    
-    column(
-      width = 3,
-      checkboxGroupInput( 
-        ns("checkbox_activoinactivo"), 
-        "Con/sin mantenimiento", 
-        c( 
-          "Activos" = "Activos", 
-          "Inactivos" = "Mantenimiento"
-        ),
-        selected = "Activos" 
+        width = 12,
+        uiOutput(ns("titulo_principal"))
       )
     ),
-    
-    column(
-      width = 6,
-      div(style = "height: 100%;") # Espacio vacío
-    )
-    
+    # Dashboard de estadísticas
+    fluidRow(
+      column(
+        width = 4,
+        div(
+          class = "well",
+          style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
+          h4("Contenedores Levantados", style = "color: #28a745;"),
+          textOutput(ns("contador_levantados")),
+          style = "text-align: center; font-size: 24px; font-weight: bold;"
+        )
+      ),
+      column(
+        width = 4,
+        div(
+          class = "well",
+          style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
+          h4("En Mantenimiento", style = "color: #dc3545;"),
+          textOutput(ns("contador_mantenimiento")),
+          style = "text-align: center; font-size: 24px; font-weight: bold;"
+        )
+      ),
+      column(
+        width = 4,
+        div(
+          class = "well",
+          style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
+          h4("Activos", style = "color: #17a2b8;"),
+          textOutput(ns("contador_activos")),
+          style = "text-align: center; font-size: 24px; font-weight: bold;"
+        )
+      )
     ),
-    
-
-    # leafletOutput(ns("map")),
-    # DTOutput(ns("tabla_puntos"))
-    
-    
+    div(
+      class = "well",
+      style = "background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;",
+      fluidRow(
+        column(
+          width = 3,
+          dateInput(
+            ns("filtro_fecha"),
+            "Selecciona una fecha:",
+            value = ultima_fecha_registro + 1,
+            min = as.Date("2025-02-16"),
+            max = ultima_fecha_registro + 1,
+            width = '200px'
+          )
+        ),
+        column(
+          width = 3,
+          uiOutput(ns("dias_min_ui"))
+        ),
+        column(
+          width = 3,
+          uiOutput(ns("dias_max_ui"))
+        ),
+        column(
+          width = 3,
+          checkboxGroupInput(
+            ns("checkbox_activoinactivo"),
+            "Con/sin mantenimiento",
+            c(
+              "Activos" = "Activos",
+              "Inactivos" = "Mantenimiento"
+            ),
+            selected = "Activos"
+          )
+        )
+      ),
+      fluidRow(
+        column(
+          width = 12,
+          style = "text-align: left;",
+          downloadButton(
+            ns("descargar_csv"),
+            "Descargar CSV",
+            class = "btn btn-primary",
+            style = "margin-top: 10px; width: 200px;"
+          )
+        )
+      )
+    ),
     fluidRow(
       column(
         width = 12,
@@ -58,7 +219,6 @@ estadoDiarioUI <- function(id) {
         )
       )
     ),
-    
     fluidRow(
       column(
         width = 12,
@@ -68,238 +228,175 @@ estadoDiarioUI <- function(id) {
         )
       )
     )
-    
-    
-    
   )
 }
 
 estadoDiarioServer <- function(input, output, session) {
   ns <- session$ns
   
-  #ultima_fecha_registro <- max(historico_estado_diario$Fecha)
-  #fecha_para_informediario <- ultima_fecha_registro+1
+  # Título reactivo
+  output$titulo_principal <- renderUI({
+    h3(paste("Informe diario de Gestión", 
+             format(input$filtro_fecha, "%d/%m/%Y"),
+             "a las 06:00 am"),
+       style = "text-align: center; color: #2c3e50; margin-bottom: 30px; font-weight: bold;")
+  })
   
-  # ---- Reactiva Informe diario -----
+  # Reactiva para las estadísticas diarias
+  estadisticas_diarias <- reactive({
+    req(input$filtro_fecha)
+    calcular_estadisticas_diarias(web_historico_estado_diario, input$filtro_fecha)
+  })
   
-  # estado_diario_completo_sin_mantenimiento
-
+  # Outputs para los contadores
+  output$contador_levantados <- renderText({
+    estadisticas_diarias()$levantados
+  })
+  
+  output$contador_mantenimiento <- renderText({
+    estadisticas_diarias()$mantenimiento
+  })
+  
+  output$contador_activos <- renderText({
+    estadisticas_diarias()$activos
+  })
+  
+  # Reactiva para el estado diario
   estado_diario <- reactive({
     req(input$filtro_fecha)
-    req(input$dias, length(input$dias) == 2, !any(is.na(input$dias)))
+    req(input$dias_min, input$dias_max)
+    
+    # Validar que el mínimo no sea mayor que el máximo
+    if (input$dias_min > input$dias_max) {
+      showNotification("El valor mínimo no puede ser mayor que el máximo", type = "error")
+      return(web_historico_estado_diario[0, ])
+    }
     
     tryCatch({
-      datos_filtrados <- historico_estado_diario %>%
-        filter(Fecha == as.Date(input$filtro_fecha)-1) %>%
-        filter(Acumulacion >= input$dias[1]) %>%
-        filter(Acumulacion <= input$dias[2])
-      
-      if (is.null(input$checkbox_activoinactivo) || length(input$checkbox_activoinactivo) == 0) {
-        showNotification("No se han seleccionado opciones de mantenimiento. No se muestran datos.", type = "warning")
-        return(historico_estado_diario[0, c("gid", "Municipio", "Circuito_corto", "Posicion", "Direccion", "Estado", "Acumulacion", "the_geom")])
-      }
-      
-      if (length(input$checkbox_activoinactivo) == 1) {
-        if (input$checkbox_activoinactivo == "Activos") {
-          datos_filtrados <- datos_filtrados %>% filter(is.na(Estado))
-        } else if (input$checkbox_activoinactivo == "Mantenimiento") {
-          datos_filtrados <- datos_filtrados %>% filter(Estado == "Mantenimiento")
-        }
-      }
+      datos_filtrados <- filtrar_datos_estado_diario(
+        web_historico_estado_diario,
+        input$filtro_fecha,
+        c(input$dias_min, input$dias_max),
+        input$checkbox_activoinactivo
+      )
       
       if (nrow(datos_filtrados) == 0) {
         showNotification("No se encontraron datos para la fecha seleccionada.", type = "warning")
-        return(historico_estado_diario[0, c("gid", "Municipio", "Circuito_corto", "Posicion", "Direccion", "Estado", "Acumulacion", "the_geom")])
+        return(web_historico_estado_diario[0, ])
       }
       
       return(datos_filtrados)
     }, error = function(e) {
       showNotification(paste("Error al filtrar los datos:", e$message), type = "error")
-      return(historico_estado_diario[0, c("gid", "Municipio", "Circuito_corto", "Posicion", "Direccion", "Estado", "Acumulacion", "the_geom")])
+      return(web_historico_estado_diario[0, ])
     })
   })
   
-  # Función reactiva para calcular el valor máximo de la columna "Acumulacion"
+  # Reactiva para el máximo de acumulación
   max_acumulacion <- reactive({
-    req(input$filtro_fecha)  # Validar que el input tenga un valor válido
-
+    req(input$filtro_fecha)
+    
     tryCatch({
-      # Filtrar el dataframe por la fecha seleccionada
-      datos_filtrados <- historico_estado_diario %>%
-        filter(Fecha == as.Date(input$filtro_fecha)-1)
-
-      # Si no hay datos en esa fecha, devolver 1 como máximo
+      datos_filtrados <- web_historico_estado_diario %>%
+        filter(Fecha == as.Date(input$filtro_fecha) - 1)
+      
       if (nrow(datos_filtrados) == 0) {
         showNotification("No hay datos disponibles para la fecha seleccionada.", type = "warning")
         return(1)
-      } else {
-        # Calcular el máximo de la columna "Acumulacion" en los datos filtrados
-        max_acumulacion_dia <- max(datos_filtrados$Acumulacion, na.rm = TRUE)
-        return(max_acumulacion_dia)
       }
+      
+      return(max(datos_filtrados$Acumulacion, na.rm = TRUE))
     }, error = function(e) {
-      # Mostrar una notificación de error y retornar un valor por defecto
       showNotification(paste("Error al calcular el máximo de acumulación:", e$message), type = "error")
       return(1)
     })
   })
   
-  output$diasUI <- renderUI({
+  # UI para los inputs de días
+  output$dias_min_ui <- renderUI({
     req(max_acumulacion())
-    sliderInput(
-      ns('dias'),
-      'Días de acumulación',
+    numericInput(
+      ns('dias_min'),
+      'Días mínimos',
       min = 1,
       max = max_acumulacion(),
-      value = c(1, max_acumulacion())
+      value = 1,
+      width = '100px'
     )
   })
-
   
-  # Filtrar y mostrar la tabla de puntos únicos según el filtro de fecha
+  output$dias_max_ui <- renderUI({
+    req(max_acumulacion())
+    numericInput(
+      ns('dias_max'),
+      'Días máximos',
+      min = 1,
+      max = max_acumulacion(),
+      value = max_acumulacion(),
+      width = '100px'
+    )
+  })
+  
+  # Tabla de puntos
   output$tabla_puntos <- renderDT({
-
-    df <- estado_diario()
+    df <- estado_diario() %>%
+      select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
     
-    df <- df %>% 
-      select(gid,Municipio,Circuito_corto,Posicion,Direccion,Estado,Acumulacion)
-    
-    datatable(df, filter = "top", selection = "single",
-              rownames = FALSE,  # Desactiva la columna autogenerada de índices
+    datatable(df,
+              filter = "top",
+              selection = "single",
+              rownames = FALSE,
               options = list(
-                pageLength = 100
-                ,
+                pageLength = 100,
                 columnDefs = list(
-                  list(width = '10%', targets = 0,className = 'dt-center'),  # Ahora 'Municipio' será target = 0
-                  list(width = '10%', targets = 1,className = 'dt-center',filter = 'text'),  # 'gid' será target = 1
-                  list(width = '20%', targets = 2,className = 'dt-center'),  # 'Circuito' será target = 2
-                  list(width = '10%', targets = 3,className = 'dt-center'),  # 'Posicion' será target = 3
-                  list(width = '40%', targets = 4),  # 'Direccion' será target = 4
-                  list(width = '5%', targets = 5,className = 'dt-center'),   # 'Acumulacion' será target = 5
-                  list(width = '5%', targets = 6,className = 'dt-center')   # 'Acumulacion' será target = 5
+                  list(width = '10%', targets = 0, className = 'dt-center'),
+                  list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
+                  list(width = '20%', targets = 2, className = 'dt-center'),
+                  list(width = '10%', targets = 3, className = 'dt-center'),
+                  list(width = '40%', targets = 4),
+                  list(width = '5%', targets = 5, className = 'dt-center'),
+                  list(width = '5%', targets = 6, className = 'dt-center')
                 )
               ))
-  })  
+  })
   
+  # Descargar datos como CSV
+  output$descargar_csv <- downloadHandler(
+    filename = function() {
+      paste("estado_diario_", format(input$filtro_fecha, "%Y-%m-%d"), ".csv", sep = "")
+    },
+    content = function(file) {
+      df <- estado_diario() %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      write.csv(df, file, row.names = FALSE)
+    }
+  )
   
-
-  ################### MAPA #############################
-
+  # Mapa
   output$map <- renderLeaflet({
-    # Filtrar y preparar los datos como antes
-    datos <- estado_diario() %>% 
-      filter(!is.na(the_geom))
-    
-    # Crear la paleta de colores si hay datos
-    # paleta_colores <- colorFactor(palette = "Set1", domain = datos$Incidencia)
-    
-    # Crear el mapa centrado en Montevideo en coordenadas geográficas
-    mapa <- leaflet() %>%
-      addTiles() %>%
-      setView(lng = lng_montevideo, lat = lat_montevideo, zoom = 12) %>%   # Usar coordenadas lat/lon de Montevideo
-      addMeasure(
-        position = "topright",             # Ubicación del botón de medición
-        primaryLengthUnit = "meters",      # Unidad de medida principal
-        secondaryLengthUnit = "kilometers",# Unidad de medida secundaria
-        activeColor = "#3D535D",           # Color al medir
-        completedColor = "#7D4479",        # Color al completar la medición
-        primaryAreaUnit = "sqmeters",      # Unidad de área principal
-        secondaryAreaUnit = "hectares"     # Unidad de área secundaria
-      )
-
-    
-    # Si hay datos, agregar los puntos al mapa
-    if (nrow(datos) > 0) {
-      
-      # Agrego los valores de los colores.
-      datos <- modificar_coordenadas_paramapa(datos)
-      datos <- datos %>%
-        mutate(
-          color = case_when(
-            Acumulacion %in% c(1, 2) ~ "green",
-            Acumulacion == 3 ~ "yellow",
-            Acumulacion == 4 ~ "orange",
-            Acumulacion == 5 ~ "red",
-            Acumulacion >= 6 ~ "black"
-          )
-        )
-      
-      # Crear el mapa con marcadores
-      mapa <- leaflet(datos) %>%
-        addTiles() %>%
-        addSearchOSM(options = searchOptions(collapsed = FALSE)) %>%
-        addCircleMarkers(
-          ~lon, ~lat,
-          color = ~color, radius = 5, fillOpacity = 0.8,
-          popup = ~paste(
-            "Direccion: ", Direccion, "<br>",
-            "GID: ", gid, "<br>",
-            "Acumulacion:", Acumulacion
-          )
-        ) %>%
-        onRender("
-      function(el, x) {
-        var map = this;
-        function updateCircleMarkerSize() {
-          var zoom = map.getZoom();
-          map.eachLayer(function(layer) {
-            if (layer instanceof L.CircleMarker) {
-              var newRadius = zoom * 0.1;
-              layer.setRadius(newRadius);
-            }
-          });
-        }
-        map.on('zoomend', updateCircleMarkerSize);
-        updateCircleMarkerSize();
-      }
-    ")
-    } 
-    
-    mapa  # Devolver el mapa, con o sin puntos
-  })  
-  
-  
-  
-  
-
-
-  # Renderizar el mapa inf diario
-  output$map <- renderLeaflet({
-
-    # Obtén los datos filtrados
     datos <- estado_diario() %>%
       filter(!is.na(the_geom))
-
-    # Si el data frame está vacío, retorna solo el mapa base sin marcadores
+    
     if (nrow(datos) == 0) {
       return(
         leaflet() %>%
           addTiles() %>%
-          setView(lng = -56.1645, lat = -34.9011, zoom = 12) %>%
+          setView(lng = lng_montevideo, lat = lat_montevideo, zoom = 12) %>%
           addSearchOSM(options = searchOptions(collapsed = FALSE))
       )
-    } else {
-
-    # Si hay datos, modifícalos para obtener coordenadas y asigna colores
-    datos <- modificar_coordenadas_paramapa(datos)
-    datos <- datos %>%
-      mutate(
-        color = case_when(
-          Acumulacion %in% c(1, 2) ~ "green",
-          Acumulacion == 3 ~ "yellow",
-          Acumulacion == 4 ~ "orange",
-          Acumulacion == 5 ~ "red",
-          Acumulacion >= 6 ~ "black"
-        )
-      )
-
-    # Crear el mapa con marcadores
+    }
+    
+    datos <- modificar_coordenadas_paramapa(datos) %>%
+      mutate(color = map_chr(Acumulacion, determinar_color_acumulacion))
+    
     leaflet(datos) %>%
       addTiles() %>%
       addSearchOSM(options = searchOptions(collapsed = FALSE)) %>%
       addCircleMarkers(
         ~lon, ~lat,
-        color = ~color, radius = 5, fillOpacity = 0.8,
+        color = ~color,
+        radius = 5,
+        fillOpacity = 0.8,
         popup = ~paste(
           "Direccion: ", Direccion, "<br>",
           "GID: ", gid, "<br>",
@@ -307,22 +404,22 @@ estadoDiarioServer <- function(input, output, session) {
         )
       ) %>%
       onRender("
-      function(el, x) {
-        var map = this;
-        function updateCircleMarkerSize() {
-          var zoom = map.getZoom();
-          map.eachLayer(function(layer) {
-            if (layer instanceof L.CircleMarker) {
-              var newRadius = zoom * 0.1;
-              layer.setRadius(newRadius);
-            }
-          });
+        function(el, x) {
+          var map = this;
+          function updateCircleMarkerSize() {
+            var zoom = map.getZoom();
+            map.eachLayer(function(layer) {
+              if (layer instanceof L.CircleMarker) {
+                var newRadius = zoom * 0.1;
+                layer.setRadius(newRadius);
+              }
+            });
+          }
+          map.on('zoomend', updateCircleMarkerSize);
+          updateCircleMarkerSize();
         }
-        map.on('zoomend', updateCircleMarkerSize);
-        updateCircleMarkerSize();
-      }
-    ")
-
-    }
+      ")
   })
- }
+}
+
+# nolint end

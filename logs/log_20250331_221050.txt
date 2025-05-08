@@ -1,0 +1,7 @@
+[2025-03-31 22:10:50] [INFO] Iniciando script carga_BD.R en modo desarrollo
+[2025-03-31 22:10:50] [INFO] Archivo cargado con éxito: global.R
+[2025-03-31 22:10:50] [INFO] Archivo cargado con éxito: funciones_carga_datos.R
+[2025-03-31 22:10:50] [INFO] Archivo cargado con éxito: funciones_utiles.R
+[2025-03-31 22:10:50] [INFO] Archivo cargado con éxito: funciones_para_web.R
+[2025-03-31 22:11:22] [ERROR] Error en al cargar carga_datos.R : no se puede abrir la conexión
+Detalles: file filename r encoding
