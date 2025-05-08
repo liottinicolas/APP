@@ -114,16 +114,9 @@ historico_viajes <- actualizar_planillas_RDS(
 ## 4. Actualización de estado diario
 ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
 
-# Seleccionar el archivo de funciones según el modo configurado
-if (CONFIGURACION$MODO == "produccion") {
-  # Usar la versión optimizada para producción
-  ruta_funciones_estadodiario <- file.path(ruta_proyecto, "scripts/estado_diario/funciones_cargadatos_estado_diario_optimizado.R")
-  escribir_log("INFO", "Usando funciones optimizadas para estado diario")
-} else {
-  # Usar la versión estándar para desarrollo
-  ruta_funciones_estadodiario <- file.path(ruta_proyecto, "scripts/estado_diario/funciones_cargadatos_estado_diario.R")
-  escribir_log("INFO", "Usando funciones estándar para estado diario")
-}
+# Usar siempre la versión optimizada
+ruta_funciones_estadodiario <- file.path(ruta_proyecto, "scripts/estado_diario/funciones_cargadatos_estado_diario_optimizado.R")
+escribir_log("INFO", "Usando funciones optimizadas para estado diario")
 
 source(ruta_funciones_estadodiario)
 historico_estado_diario <- actualizar_planillas_RDS_estado_diario(ruta_RDS_datos)
@@ -154,6 +147,6 @@ historico_completo_llenado_incidencias <- actualizar_planillas_RDS_llenado_compl
 # Actualizo las modificaciones de ubicaciones
 ruta_RDS_ubicaciones_conthegeom <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds")
 ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
-saveRDS(ubicaciones_existentes,ruta_RDS_ubicaciones_conthegeom)
+saveRDS(ubicaciones_existentes, ruta_RDS_ubicaciones_conthegeom)
 
 # nolint end

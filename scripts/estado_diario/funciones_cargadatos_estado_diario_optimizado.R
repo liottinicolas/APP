@@ -15,6 +15,38 @@
 # ruta_datos <- ruta_RDS_datos
 # ubicaciones <- historico_ubicaciones
 
+#' Limpia duplicados en el histórico de estado diario
+#' 
+#' @param ruta_RDS_datos Ruta al archivo RDS del histórico
+#' @return Dataframe limpio sin duplicados
+limpiar_duplicados_estado_diario <- function(ruta_RDS_datos) {
+  if(file.exists(ruta_RDS_datos)) {
+    # Leer el archivo actual
+    historico_estado_diario_actual <- readRDS(ruta_RDS_datos)
+    
+    # Limpiar duplicados
+    historico_estado_diario_limpio <- historico_estado_diario_actual %>%
+      distinct(gid, Fecha, .keep_all = TRUE) %>%
+      arrange(Fecha, gid)
+    
+    # Verificar si se eliminaron duplicados
+    num_registros_antes <- nrow(historico_estado_diario_actual)
+    num_registros_despues <- nrow(historico_estado_diario_limpio)
+    
+    if(num_registros_antes > num_registros_despues) {
+      # Guardar la versión limpia
+      saveRDS(historico_estado_diario_limpio, file = ruta_RDS_datos)
+      escribir_log("INFO", paste("Se eliminaron", num_registros_antes - num_registros_despues, 
+                                "registros duplicados en historico_estado_diario"))
+    } else {
+      escribir_log("INFO", "No se encontraron duplicados en historico_estado_diario")
+    }
+    
+    return(historico_estado_diario_limpio)
+  }
+  return(NULL)
+}
+
 #' Actualiza el histórico del estado diario de los contenedores
 #' 
 #' Procesa nuevos datos de estado diario y los agrega al histórico,
@@ -25,6 +57,9 @@
 actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   
   ubicaciones <- historico_ubicaciones
+  
+  # Primero limpiar duplicados si existen
+  limpiar_duplicados_estado_diario(ruta_datos)
   
   # Cargar datos históricos si existen, o crear estructura vacía
   estado_diario_global <- if (file.exists(ruta_datos)) {
