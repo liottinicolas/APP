@@ -161,19 +161,20 @@ funcion_cargar_dias_que_esta_en_mantenimiento <- function(df){
 }
 
 
+  # gid_buscado <- 100304
+# inicio <- as.Date("2025-03-01")
+# fin <- as.Date("2025-05-01")
+funcion_obtener_estado_de_contenedores_porgid <- function(gid_buscado,inicio,fin) {
   
+  ubi_porgid <- web_historico_ubicaciones %>% 
+    filter(gid == gid_buscado) %>% 
+    filter(Fecha >= inicio) %>% 
+    filter(Fecha <= fin) %>% 
+    select(Fecha,gid,Estado) %>% 
+    arrange(desc(Fecha))
   
-# 
-#   hoy <- web_historico_estado_diario %>%
-#     filter(Fecha == "2025-05-09") %>%
-#     filter(Estado == "Mantenimiento")
-#   df <- hoy
-# 
-# asd <- funcion_cargar_dias_que_esta_en_mantenimiento(hoy)
-# 
-# 
-#  
-
+  return(ubi_porgid)
   
-
+}
+  
  
