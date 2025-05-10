@@ -1,29 +1,22 @@
-# Cargar paquetes necesarios
-library(shiny)
-library(shinydashboard)
-library(shinyWidgets)
-library(DT)
-library(htmlwidgets)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(readr)
-library(stringr)
-library(lubridate)
-library(ggplot2)
-library(plotly)
-library(leaflet)
-library(leaflet.extras)
-library(sf)
-library(knitr)
-library(rmarkdown)
-library(openxlsx)
-library(writexl)
-library(readxl)
-library(rsconnect)
-library(here)
-library(R6)
-library(tools)
+# Lista de paquetes necesarios
+paquetes_necesarios <- c(
+  "shiny", "shinydashboard", "shinyWidgets", "DT", "htmlwidgets", "dplyr",
+  "tidyr", "purrr", "readr", "stringr", "lubridate", "ggplot2", "plotly",
+  "leaflet", "leaflet.extras", "sf", "knitr", "rmarkdown", "openxlsx",
+  "writexl", "readxl", "rsconnect", "here", "R6", "tools", "magrittr"
+)
+
+# Función para instalar y cargar paquetes
+instalar_y_cargar <- function(paquete) {
+  if (!requireNamespace(paquete, quietly = TRUE)) {
+    install.packages(paquete)
+  }
+  library(paquete, character.only = TRUE)
+}
+
+# Aplicar la función a todos los paquetes
+invisible(lapply(paquetes_necesarios, instalar_y_cargar))
+
 
 # Configuración del entorno
 ruta_proyecto <- here()

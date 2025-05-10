@@ -79,13 +79,60 @@ funcion_calcular_ranking_deldia <- function(fecha_consulta, df_informedeldia){
 }
 
 
-fecha_consulta <- as.Date("2025-04-10")
+fecha_consulta <- as.Date("2025-05-07")
 df_informedeldia <- historico_estado_diario %>% 
   filter(Fecha == fecha_consulta)
 
 asd <- funcion_calcular_ranking_deldia(fecha_consulta,df_informedeldia)
-rankgin <- asd$ranking_principal
+rankingg <- asd$ranking_principal
 MAPAP <- asd$mapa_poligono
 
+# Ordenar el ranking por UNA y actualizar Excel
+ranking_ordenado <- rankingg %>%
+  arrange(desc(UNA)) %>%
+  select(Circuito_corto, Ranking, UNA, turno_planificado)
+
+# Definir las rutas de los archivos Excel
+excel_path_load <- file.path("scripts", "para_mapear", "Ranking_base.xlsx")
+excel_path_save <- file.path("scripts", "para_mapear", "Ranking_base2.xlsx")
+
+# Cargar el archivo Excel existente
+wb <- loadWorkbook(excel_path_load)
+
+# Escribir el ranking ordenado en la hoja 1 a partir de la celda E18
+writeData(
+  wb,
+  sheet = 1,
+  x = ranking_ordenado %>% select(Circuito_corto, Ranking),
+  startCol = 5,  # Columna E
+  startRow = 18,
+  colNames = FALSE  # No escribir nombres de columnas
+)
+
+# Escribir UNA en la columna G
+writeData(
+  wb,
+  sheet = 1,
+  x = ranking_ordenado %>% select(UNA),
+  startCol = 8,  # Columna G
+  startRow = 18,
+  colNames = FALSE
+)
+
+# Escribir turno en la columna H
+writeData(
+  wb,
+  sheet = 1,
+  x = ranking_ordenado %>% select(turno_planificado),
+  startCol = 9,  # Columna H
+  startRow = 18,
+  colNames = FALSE
+)
+
+# Guardar el archivo Excel con el nuevo nombre
+saveWorkbook(wb, excel_path_save, overwrite = TRUE)
+
+# Mensaje de confirmación
+cat("Ranking actualizado exitosamente en", excel_path_save, "\n")
 
 # nolint end

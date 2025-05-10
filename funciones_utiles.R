@@ -804,4 +804,98 @@ funcion_obtener_datosporgid <- function(gid_buscado) {
   })
 }
 
+#' Función para mostrar diferencias de manera concisa
+#' @param df1 DataFrame con datos del día actual
+#' @param df2 DataFrame con datos del día anterior
+#' @param tipo_cambio Tipo de cambio a detectar ("estado", "ubicacion", "todos")
+#' @return DataFrame con solo las diferencias relevantes
+mostrar_diferencias_concisa <- function(df1, df2, tipo_cambio = "todos") {
+  cat("\n=== ANÁLISIS DE DIFERENCIAS ===\n")
+  cat("Tipo de cambio analizado:", tipo_cambio, "\n")
+  cat("Total registros día actual:", nrow(df1), "\n")
+  cat("Total registros día anterior:", nrow(df2), "\n\n")
+  
+  # Definir columnas según el tipo de cambio
+  columnas_por_tipo <- list(
+    "estado" = c("gid", "Estado"),
+    "ubicacion" = c("gid", "Circuito", "Posicion", "Direccion"),
+    "todos" = c("gid", "Estado", "Circuito", "Posicion", "Direccion")
+  )
+  
+  # Seleccionar columnas según el tipo de cambio
+  columnas_para_comparar <- columnas_por_tipo[[tipo_cambio]]
+  
+  cat("Columnas analizadas:", paste(columnas_para_comparar, collapse = ", "), "\n\n")
+  
+  # Obtener diferencias usando anti_join
+  diferencias <- df1 %>%
+    anti_join(df2, by = columnas_para_comparar)
+  
+  # Si no hay diferencias, retornar mensaje
+  if (nrow(diferencias) == 0) {
+    cat("No se encontraron diferencias\n")
+    return(data.frame(mensaje = "No hay diferencias"))
+  }
+  
+  cat("Total de diferencias encontradas:", nrow(diferencias), "\n\n")
+  
+  # Seleccionar solo las columnas relevantes y agregar información de cambio
+  diferencias_concisa <- diferencias %>%
+    select(all_of(columnas_para_comparar)) %>%
+    distinct() %>%
+    mutate(
+      tipo_cambio = case_when(
+        tipo_cambio == "estado" ~ "Cambio de estado",
+        tipo_cambio == "ubicacion" ~ "Cambio de ubicación",
+        TRUE ~ "Cambio general"
+      )
+    )
+  
+  # Agregar información del estado anterior si es relevante
+  if (tipo_cambio %in% c("estado", "todos")) {
+    diferencias_concisa <- diferencias_concisa %>%
+      left_join(
+        df2 %>% select(gid, Estado) %>% rename(Estado_anterior = Estado),
+        by = "gid"
+      )
+  }
+  
+  # Mostrar resumen de cambios
+  cat("=== RESUMEN DE CAMBIOS ===\n")
+  if (tipo_cambio %in% c("estado", "todos")) {
+    cat("\nCambios de estado:\n")
+    print(diferencias_concisa %>% 
+            select(gid, Estado, Estado_anterior) %>% 
+            distinct() %>%
+            arrange(gid))
+            
+    # Mostrar conteo por tipo de estado
+    cat("\nConteo por estado actual:\n")
+    print(diferencias_concisa %>%
+            count(Estado) %>%
+            arrange(desc(n)))
+            
+    # Mostrar conteo por tipo de cambio de estado
+    cat("\nConteo por tipo de cambio de estado:\n")
+    print(diferencias_concisa %>%
+            filter(!is.na(Estado_anterior)) %>%
+            mutate(tipo_cambio_estado = paste(Estado_anterior, "->", Estado)) %>%
+            count(tipo_cambio_estado) %>%
+            arrange(desc(n)))
+  }
+  
+  if (tipo_cambio %in% c("ubicacion", "todos")) {
+    cat("\nCambios de ubicación:\n")
+    print(diferencias_concisa %>% 
+            select(gid, Circuito, Posicion, Direccion) %>% 
+            distinct() %>%
+            arrange(gid))
+  }
+  
+  cat("\n=== DETALLE COMPLETO DE CAMBIOS ===\n")
+  print(diferencias_concisa %>% arrange(gid))
+  
+  return(diferencias_concisa)
+}
+
 # nolint end

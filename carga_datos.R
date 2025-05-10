@@ -1,6 +1,12 @@
 # nolint start: line_length_linter, object_name_linter
 #
 
+# Cargar paquetes necesarios
+library(dplyr)
+
+# Definir la ruta del proyecto
+ruta_proyecto <- getwd()
+
 # Función auxiliar para establecer rutas y cargar datos
 cargar_datos <- function(
   modulo,

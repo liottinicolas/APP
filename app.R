@@ -1,11 +1,5 @@
 # nolint start: line_length_linter, object_name_linter
 
-
-library(shiny)
-library(shinydashboard)
-library(leaflet)
-library(DT)
-
 source("config.R")
 source("logging.R")
 source("global.R")

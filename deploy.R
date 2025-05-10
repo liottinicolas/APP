@@ -23,6 +23,7 @@
                                     "scripts/estado_diario/historico_estado_diario.rds",
                                     "scripts/llenado_completo/historico_llenado_completo.rds",
                                     "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds",
+                                    "scripts/db/10393_ubicaciones/historico_ubicaciones.rds",
                                     "scripts/para_mapear/circuitos_planificados.rds",
                                     "modules/estado_diario.R",
                                     "modules/busqueda_gid.R",

@@ -45,6 +45,16 @@ filtrar_datos_estado_diario <- function(datos, fecha, dias, estados) {
       datos_filtrados <- datos_filtrados %>% filter(is.na(Estado))
     } else if (estados == "Mantenimiento") {
       datos_filtrados <- datos_filtrados %>% filter(Estado == "Mantenimiento")
+      
+      # Obtener los días en mantenimiento
+      dias_mantenimiento <- funcion_cargar_dias_que_esta_en_mantenimiento(datos_filtrados)
+      
+      # Unir con el dataframe original solo la columna Diferencia
+      datos_filtrados <- datos_filtrados %>%
+        left_join(
+          dias_mantenimiento %>% select(gid, Diferencia),
+          by = "gid"
+        )
     }
   }
   
@@ -186,12 +196,12 @@ estadoDiarioUI <- function(id) {
         ),
         column(
           width = 3,
-          checkboxGroupInput(
+          radioButtons(
             ns("checkbox_activoinactivo"),
-            "Con/sin mantenimiento",
+            "Estado",
             c(
               "Activos" = "Activos",
-              "Inactivos" = "Mantenimiento"
+              "En Mantenimiento" = "Mantenimiento"
             ),
             selected = "Activos"
           )
@@ -339,8 +349,39 @@ estadoDiarioServer <- function(input, output, session) {
   
   # Tabla de puntos
   output$tabla_puntos <- renderDT({
-    df <- estado_diario() %>%
-      select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+    df <- estado_diario()
+    
+    # Seleccionar columnas según el estado seleccionado
+    if (input$checkbox_activoinactivo == "Mantenimiento") {
+      df <- df %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion, Diferencia)
+      
+      # Configuración de columnas para estado Mantenimiento
+      columnDefs <- list(
+        list(width = '10%', targets = 0, className = 'dt-center'),
+        list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
+        list(width = '20%', targets = 2, className = 'dt-center'),
+        list(width = '10%', targets = 3, className = 'dt-center'),
+        list(width = '35%', targets = 4),
+        list(width = '5%', targets = 5, className = 'dt-center'),
+        list(width = '5%', targets = 6, className = 'dt-center'),
+        list(width = '5%', targets = 7, className = 'dt-center')
+      )
+    } else {
+      df <- df %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      
+      # Configuración de columnas para estado Activos
+      columnDefs <- list(
+        list(width = '10%', targets = 0, className = 'dt-center'),
+        list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
+        list(width = '20%', targets = 2, className = 'dt-center'),
+        list(width = '10%', targets = 3, className = 'dt-center'),
+        list(width = '40%', targets = 4),
+        list(width = '5%', targets = 5, className = 'dt-center'),
+        list(width = '5%', targets = 6, className = 'dt-center')
+      )
+    }
     
     datatable(df,
               filter = "top",
@@ -348,15 +389,7 @@ estadoDiarioServer <- function(input, output, session) {
               rownames = FALSE,
               options = list(
                 pageLength = 100,
-                columnDefs = list(
-                  list(width = '10%', targets = 0, className = 'dt-center'),
-                  list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
-                  list(width = '20%', targets = 2, className = 'dt-center'),
-                  list(width = '10%', targets = 3, className = 'dt-center'),
-                  list(width = '40%', targets = 4),
-                  list(width = '5%', targets = 5, className = 'dt-center'),
-                  list(width = '5%', targets = 6, className = 'dt-center')
-                )
+                columnDefs = columnDefs
               ))
   })
   
@@ -366,8 +399,17 @@ estadoDiarioServer <- function(input, output, session) {
       paste("estado_diario_", format(input$filtro_fecha, "%Y-%m-%d"), ".csv", sep = "")
     },
     content = function(file) {
-      df <- estado_diario() %>%
-        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      df <- estado_diario()
+      
+      # Seleccionar columnas según el estado seleccionado
+      if (input$checkbox_activoinactivo == "Mantenimiento") {
+        df <- df %>%
+          select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion, Diferencia)
+      } else {
+        df <- df %>%
+          select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      }
+      
       write.csv(df, file, row.names = FALSE)
     }
   )
