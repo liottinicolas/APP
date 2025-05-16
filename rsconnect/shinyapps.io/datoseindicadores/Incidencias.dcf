@@ -1,0 +1,10 @@
+name: Incidencias
+title:
+username: datoseindicadores
+account: datoseindicadores
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12649253
+bundleId: 10078820
+url: https://datoseindicadores.shinyapps.io/Incidencias/
+version: 1

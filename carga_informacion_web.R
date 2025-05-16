@@ -1,8 +1,5 @@
 # nolint start: line_length_linter, object_name_linter
 
-library(magrittr)
-
-  
   ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
   web_historico_estado_diario <- read_rds(ruta_RDS_datos)
   

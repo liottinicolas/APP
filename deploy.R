@@ -1,4 +1,3 @@
-
   source("carga_BD.R")
   
   # Configuración del certificado SSL
@@ -17,6 +16,8 @@
   
   rsconnect::deployApp(appDir = ".",
                        appFiles = c("app.R", "config.R", "logging.R","global.R",
+                                    "init.R",
+                                    "packages.R",
                                     "carga_informacion_web.R",
                                     "funciones_para_web.R",
                                     "funciones_utiles.R",

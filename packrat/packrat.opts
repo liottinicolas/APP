@@ -1,0 +1,7 @@
+auto.snapshot: TRUE
+use.cache: TRUE
+external.packages: c()
+local.repos: c()
+vcs.ignore.lib: TRUE
+vcs.ignore.src: TRUE
+use.cache: TRUE 

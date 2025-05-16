@@ -2,6 +2,9 @@
 # ARCHIVO DE CONFIGURACIÓN DEL SISTEMA
 ########################
 
+# Configuración del repositorio CRAN
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
 # Configuración de fechas y parámetros generales
 CONFIGURACION <- list(
   # Fechas de análisis (formato YYYY-MM-DD)
