@@ -1,6 +1,3 @@
-# Cargar paquetes necesarios
-library(sf)
-library(dplyr)
 
 # Función que modifica como está escrito "the_geom".
 modificar_the_geom <- function(df) {

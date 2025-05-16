@@ -1,4 +1,3 @@
-
   source("carga_BD.R")
   
   # Configuración del certificado SSL
@@ -16,7 +15,7 @@
   # Despliega la aplicación (descomenta esta línea para desplegar)
   
   rsconnect::deployApp(appDir = ".",
-                       appFiles = c("app.R", "config.R", "logging.R","global.R",
+                       appFiles = c("app.R","DESCRIPTION", "config.R", "logging.R","global.R",
                                     "carga_informacion_web.R",
                                     "funciones_para_web.R",
                                     "funciones_utiles.R",
@@ -34,6 +33,24 @@
                                     "modules/incidencias_operativa.R",
                                     "modules/condicion_contenedor.R"),
                        appName = "Incidencias_2025")
+  
+  
+  ############### MANTENIMIENTO
+  
+  # Código para desplegar la aplicación
+  # Configura la cuenta (descomenta y rellena con tus datos)
+  rsconnect::setAccountInfo(name = "datoseindicadores",
+                            token = "C9EC0DCFA432ECC14F2438D893828344",
+                            secret = "b6YjR35qtht+AisTyTGAL5T8bZRzg1D+2go+6pPC")
+  
+  # Despliega la aplicación (descomenta esta línea para desplegar)
+  
+  rsconnect::deployApp(
+    appDir   = ".",
+    appFiles = "app.R",
+    appName  = "Incidencias_2025"
+  )
+  
   
   
   # asd <- historico_llenado %>% 
