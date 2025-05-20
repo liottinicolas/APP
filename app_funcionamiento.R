@@ -7,6 +7,8 @@ source("carga_informacion_web.R")
 source("funciones_para_web.R")
 source("funciones_utiles.R")
 
+#source("carga_BD.R")
+
 # Cargar módulos
 source("modules/estado_diario.R")
 source("modules/busqueda_gid.R")
@@ -92,3 +94,8 @@ shinyApp(ui, server)
 #   left_join(historico_viajes, by = c("Id_viaje", "Circuito")) %>% 
 #   filter(Peso_neto <= 0)
 # # nolint end
+
+
+# asd <- web_historico_estado_diario %>% 
+#   filter(Fecha == "2025-05-19") %>% 
+#   arrange(Circuito,Posicion)
