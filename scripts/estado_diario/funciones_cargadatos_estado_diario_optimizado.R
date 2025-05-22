@@ -237,19 +237,16 @@ funcion_calcular_estado_diario <- function(dia){
                Condicion, Id_motivo_inactiva, Acumulacion, gid),
       by = "gid"
     ) %>%
-    mutate(Acumulacion = if_else(is.na(Acumulacion), 1, Acumulacion)) %>%
-    distinct(gid, .keep_all = TRUE)
+    group_by(Fecha, Circuito_corto, Posicion) %>%
+    mutate(
+      es_unico = n() == 1,
+      Acumulacion = if_else(is.na(Acumulacion) & es_unico, 1, Acumulacion)
+    ) %>%
+    ungroup() %>%
+    select(-es_unico)
   
   # Preparar informe diario inicial
   informe_diario <- historico_ubicaciones_dia_informe
-  
-  # Eliminar GIDs repetidos/inactivos
-  gid_repetidos <- eliminar_gids_inactivos(historico_ubicaciones, historico_ubicaciones_dia_informe)
-  
-  # Filtrar para mantener solo contenedores activos
-  informe_diario_filtrado <- informe_diario %>%
-    anti_join(gid_repetidos, by = "gid") %>%
-    distinct(gid, .keep_all = TRUE)
   
   # Procesamiento de contenedores agregados recientemente
   contenedores_agregados <- historico_ubicaciones_cambio_de_estado %>% 
@@ -260,22 +257,20 @@ funcion_calcular_estado_diario <- function(dia){
   contenedores_agregados <- contenedores_agregados %>%
     group_by(gid) %>%
     slice_max(Fecha, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    distinct(gid, .keep_all = TRUE)
+    ungroup()
   
   # Calcular días de acumulación para contenedores recién agregados
   contenedores_agregados <- contenedores_agregados %>% 
     mutate(Acumulacion = as.numeric(difftime(dia, Fecha, units = "days"))) 
   
   # Actualizar acumulación en el informe con info de contenedores recién agregados
-  informe_diario_filtrado <- informe_diario_filtrado %>%
+  informe_diario_filtrado <- informe_diario %>%
     left_join(contenedores_agregados %>% select(gid, Acumulacion),
               by = "gid", suffix = c("", ".agg")) %>%
     mutate(Acumulacion = ifelse(!is.na(Acumulacion.agg) & Acumulacion.agg < Acumulacion,
                                 Acumulacion.agg,
                                 Acumulacion)) %>%
-    select(-Acumulacion.agg) %>%
-    distinct(gid, .keep_all = TRUE)
+    select(-Acumulacion.agg)
   
   # Procesamiento de contenedores activados recientemente
   contenedores_activos <- historico_ubicaciones_cambio_de_estado %>% 
@@ -286,8 +281,7 @@ funcion_calcular_estado_diario <- function(dia){
   contenedores_activos <- contenedores_activos %>%
     group_by(gid) %>%
     slice_max(Fecha, n = 1, with_ties = FALSE) %>%
-    ungroup() %>%
-    distinct(gid, .keep_all = TRUE)
+    ungroup()
   
   # Calcular días de acumulación para contenedores recién activados
   contenedores_activos <- contenedores_activos %>% 
@@ -302,8 +296,7 @@ funcion_calcular_estado_diario <- function(dia){
                                 Acumulacion)) %>%
     select(-Acumulacion.agg) %>% 
     mutate(DB = "Llenado") %>% 
-    filter(!grepl("^B_0[1-7]$", Circuito_corto)) %>%
-    distinct(gid, .keep_all = TRUE)
+    filter(!grepl("^B_0[1-7]$", Circuito_corto))
   
   return(informe_diario_filtrado)
 }

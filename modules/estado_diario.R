@@ -60,6 +60,7 @@ filtrar_datos_estado_diario <- function(datos, fecha, dias, estados) {
     }
   }
   
+  # Eliminamos el distinct para mantener todos los registros, incluyendo duplicados
   return(datos_filtrados)
 }
 
@@ -430,6 +431,10 @@ estadoDiarioServer <- function(input, output, session) {
         return(web_historico_estado_diario[0, ])
       }
       
+      # Ordenar los datos por Circuito_corto y Posicion
+      datos_filtrados <- datos_filtrados %>%
+        arrange(Circuito_corto, as.numeric(Posicion))
+      
       return(datos_filtrados)
     }, error = function(e) {
       showNotification(paste("Error al filtrar los datos:", e$message), type = "error")
@@ -595,8 +600,7 @@ estadoDiarioServer <- function(input, output, session) {
   
   # Mapa
   output$map <- renderLeaflet({
-    datos <- estado_diario() %>%
-      filter(!is.na(the_geom))
+    datos <- estado_diario()
     
     if (nrow(datos) == 0) {
       return(
@@ -607,23 +611,53 @@ estadoDiarioServer <- function(input, output, session) {
       )
     }
     
-    datos <- modificar_coordenadas_paramapa(datos) %>%
+    # Separar datos con y sin geometría
+    datos_con_geom <- datos %>% filter(!is.na(the_geom))
+    datos_sin_geom <- datos %>% filter(is.na(the_geom))
+    
+    # Procesar datos con geometría para el mapa
+    datos_mapa <- modificar_coordenadas_paramapa(datos_con_geom) %>%
       mutate(color = map_chr(Acumulacion, determinar_color_acumulacion))
     
-    leaflet(datos) %>%
+    # Crear mapa base
+    mapa <- leaflet() %>%
       addTiles() %>%
-      addSearchOSM(options = searchOptions(collapsed = FALSE)) %>%
-      addCircleMarkers(
-        ~lon, ~lat,
-        color = ~color,
-        radius = 5,
-        fillOpacity = 0.8,
-        popup = ~paste(
-          "Direccion: ", Direccion, "<br>",
-          "GID: ", gid, "<br>",
-          "Acumulacion:", Acumulacion
+      addSearchOSM(options = searchOptions(collapsed = FALSE))
+    
+    # Agregar marcadores solo para datos con geometría
+    if (nrow(datos_mapa) > 0) {
+      mapa <- mapa %>%
+        addCircleMarkers(
+          data = datos_mapa,
+          ~lon, ~lat,
+          color = ~color,
+          radius = 5,
+          fillOpacity = 0.8,
+          popup = ~paste(
+            "Direccion: ", Direccion, "<br>",
+            "GID: ", gid, "<br>",
+            "Acumulacion:", Acumulacion, "<br>",
+            "Circuito:", Circuito_corto, "<br>",
+            "Posicion:", Posicion
+          )
         )
-      ) %>%
+    }
+    
+    # Agregar mensaje si hay datos sin geometría
+    if (nrow(datos_sin_geom) > 0) {
+      mapa <- mapa %>%
+        addControl(
+          html = paste0(
+            "<div style='background-color: white; padding: 10px; border-radius: 5px;'>",
+            "<strong>Nota:</strong> Hay ", nrow(datos_sin_geom), 
+            " registros sin coordenadas que se muestran en la tabla.",
+            "</div>"
+          ),
+          position = "topright"
+        )
+    }
+    
+    mapa %>%
       onRender("
         function(el, x) {
           var map = this;

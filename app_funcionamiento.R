@@ -115,3 +115,10 @@ shinyApp(ui, server)
 #       select(gid, Fecha, Porcentaje_llenado),
 #     by = c("gid", "Fecha")
 #   ) %>%
+
+
+# 
+# asd <- historico_estado_diario %>%
+#   filter(Fecha == "2025-05-21") %>%
+#   filter(is.na(Estado)) %>% 
+#   filter(!is.na(Acumulacion))
