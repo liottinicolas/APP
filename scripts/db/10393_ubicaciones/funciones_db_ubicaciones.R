@@ -1,3 +1,5 @@
+# nolint start: line_length_linter, object_name_linter
+
 
 funcion_actualizar_ubicaciones_10393 <- function(
     archivos_nuevos,
@@ -341,3 +343,5 @@ arreglar_direcciones <- function(df){
 
 
 
+
+# nolint end: line_length_linter, object_name_linter

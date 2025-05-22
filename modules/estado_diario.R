@@ -86,12 +86,34 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
         sin_instalar = 0
       ))
     }
+
+    # Calcular estadísticas
+    contenedores_sin_atraso <- tryCatch({
+      datos_dia %>%
+        filter(Acumulacion == 1) %>%
+        filter(is.na(Estado)) %>%
+        left_join(
+          web_historico_completo_llenado_incidencias %>% 
+            select(gid, Fecha, Porcentaje_llenado),
+          by = c("gid", "Fecha")
+        ) %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores sin atraso:", e$message))
+      return(0)
+    })
     
     # Calcular estadísticas
     contenedores_levantados <- tryCatch({
       datos_dia %>%
         filter(Acumulacion == 1) %>%
         filter(is.na(Estado)) %>%
+        left_join(
+          web_historico_completo_llenado_incidencias %>% 
+            select(gid, Fecha, Porcentaje_llenado),
+          by = c("gid", "Fecha")
+        ) %>%
+        filter(!is.na(Porcentaje_llenado)) %>%
         nrow()
     }, error = function(e) {
       warning(paste("Error al calcular contenedores levantados:", e$message))
@@ -129,7 +151,8 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
       levantados = contenedores_levantados,
       mantenimiento = contenedores_mantenimiento,
       activos = contenedores_activos,
-      sin_instalar = contenedores_sin_instalar
+      sin_instalar = contenedores_sin_instalar,
+      sin_atraso = contenedores_sin_atraso
     ))
   }, error = function(e) {
     warning(paste("Error general en cálculo de estadísticas:", e$message))
@@ -137,7 +160,8 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
       levantados = 0,
       mantenimiento = 0,
       activos = 0,
-      sin_instalar = 0
+      sin_instalar = 0,
+      sin_atraso = 0
     ))
   })
 }
@@ -234,6 +258,28 @@ estadoDiarioUI <- function(id) {
       ),
       fluidRow(
         column(
+          width = 6,
+          selectInput(
+            ns("filtro_municipio"),
+            "Municipio:",
+            choices = NULL,
+            multiple = TRUE,
+            width = '100%'
+          )
+        ),
+        column(
+          width = 6,
+          selectInput(
+            ns("filtro_circuito"),
+            "Circuito:",
+            choices = NULL,
+            multiple = TRUE,
+            width = '100%'
+          )
+        )
+      ),
+      fluidRow(
+        column(
           width = 12,
           style = "text-align: left;",
           downloadButton(
@@ -306,7 +352,50 @@ estadoDiarioServer <- function(input, output, session) {
     estadisticas_diarias()$sin_instalar
   })
   
-  # Reactiva para el estado diario
+  # Reactiva para obtener los municipios únicos
+  municipios_unicos <- reactive({
+    req(web_historico_estado_diario)
+    sort(unique(web_historico_estado_diario$Municipio))
+  })
+  
+  # Actualizar las opciones del select de municipios
+  observe({
+    updateSelectInput(
+      session,
+      "filtro_municipio",
+      choices = municipios_unicos(),
+      selected = NULL
+    )
+  })
+  
+  # Reactiva para obtener los circuitos según el municipio seleccionado
+  circuitos_filtrados <- reactive({
+    req(input$filtro_municipio)
+    req(web_historico_estado_diario)
+    
+    if (length(input$filtro_municipio) > 0) {
+      circuitos <- web_historico_estado_diario %>%
+        filter(Municipio %in% input$filtro_municipio) %>%
+        pull(Circuito_corto) %>%
+        unique() %>%
+        sort()
+    } else {
+      circuitos <- sort(unique(web_historico_estado_diario$Circuito_corto))
+    }
+    return(circuitos)
+  })
+  
+  # Actualizar las opciones del select de circuitos
+  observe({
+    updateSelectInput(
+      session,
+      "filtro_circuito",
+      choices = circuitos_filtrados(),
+      selected = NULL
+    )
+  })
+  
+  # Reactiva para el estado diario con los nuevos filtros
   estado_diario <- reactive({
     req(input$filtro_fecha)
     req(input$dias_min, input$dias_max)
@@ -325,8 +414,19 @@ estadoDiarioServer <- function(input, output, session) {
         input$checkbox_activoinactivo
       )
       
+      # Aplicar filtros de municipio y circuito
+      if (length(input$filtro_municipio) > 0) {
+        datos_filtrados <- datos_filtrados %>%
+          filter(Municipio %in% input$filtro_municipio)
+      }
+      
+      if (length(input$filtro_circuito) > 0) {
+        datos_filtrados <- datos_filtrados %>%
+          filter(Circuito_corto %in% input$filtro_circuito)
+      }
+      
       if (nrow(datos_filtrados) == 0) {
-        showNotification("No se encontraron datos para la fecha seleccionada.", type = "warning")
+        showNotification("No se encontraron datos para los filtros seleccionados.", type = "warning")
         return(web_historico_estado_diario[0, ])
       }
       
@@ -481,7 +581,7 @@ estadoDiarioServer <- function(input, output, session) {
       df_completo <- bind_rows(
         datos_activos,
         datos_mantenimiento,
-        datos_sin_instalar
+        datos_sin_instalar,
       )
       
       # Seleccionar las columnas necesarias

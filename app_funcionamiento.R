@@ -94,8 +94,24 @@ shinyApp(ui, server)
 #   left_join(historico_viajes, by = c("Id_viaje", "Circuito")) %>% 
 #   filter(Peso_neto <= 0)
 # # nolint end
-
-
-# asd <- web_historico_estado_diario %>% 
+# 
+# contenedores_levantados <- web_historico_estado_diario %>%
 #   filter(Fecha == "2025-05-19") %>% 
-#   arrange(Circuito,Posicion)
+#     filter(Acumulacion == 1) %>%
+#     filter(is.na(Estado)) %>%
+#     left_join(
+#       web_historico_completo_llenado_incidencias %>% 
+#         select(gid, Fecha, Porcentaje_llenado),
+#       by = c("gid", "Fecha")
+#     ) %>%
+#     filter(!is.na(Porcentaje_llenado))
+# 
+# contenedores_1 <- web_historico_estado_diario %>%
+#   filter(Fecha == "2025-05-19") %>% 
+#   filter(Acumulacion == 1) %>%
+#   filter(is.na(Estado)) %>%
+#   left_join(
+#     web_historico_completo_llenado_incidencias %>% 
+#       select(gid, Fecha, Porcentaje_llenado),
+#     by = c("gid", "Fecha")
+#   ) %>%

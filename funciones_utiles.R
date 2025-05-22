@@ -142,31 +142,39 @@ funcion_contenedores_levantados_del_dia_inactivos <- function(dia_informe){
   return(levantados)
 }
 
-eliminar_gids_inactivos <- function(ubicaciones,ubicacion_deldia){
+eliminar_gids_inactivos <- function(ubicaciones, ubicacion_deldia){
+  # 1. Identifica ubicaciones repetidas (misma ubicación, diferentes GIDs)
   ubicaciones_repetidas <- ubicaciones %>%
     group_by(Circuito, Posicion, Fecha) %>%
-    filter(n() > 1) %>%
+    filter(n() > 1) %>%  # Encuentra grupos con más de un registro
     ungroup() %>%
     select(gid, Circuito, Posicion, Fecha)
   
-  # Eliminar duplicados considerando solo las columnas gid, Circuito y Posicion
+  # 2. Elimina duplicados considerando solo las columnas clave
   ubicaciones_repetidas_sin_duplicados <- ubicaciones_repetidas %>% 
     distinct(gid, Circuito, Posicion, .keep_all = TRUE) %>% 
     select(-Fecha)
   
-  # Unir los dataframes por gid y agregar la columna Acumulacion
-  ubicaciones_actualizado <- ubicaciones_repetidas_sin_duplicados %>%
-    left_join(ubicacion_deldia %>% select(gid, Acumulacion), by = "gid")
-  ubicaciones_actualizado <- ubicaciones_actualizado %>% 
-    filter(!is.na(Acumulacion))
+  # 3. Obtener la fecha más reciente de llenado para cada GID
+  fecha_consulta <- max(ubicacion_deldia$Fecha)
+  ultimos_llenados <- historico_llenado %>%
+    filter(Fecha <= fecha_consulta) %>%
+    group_by(gid) %>%
+    slice_max(Fecha, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(gid, Fecha)
   
-  # Filtrar para quedarnos con la fila de menor Acumulacion en caso de duplicados
+  # 4. Unir con los datos de llenado más recientes
+  ubicaciones_actualizado <- ubicaciones_repetidas_sin_duplicados %>%
+    left_join(ultimos_llenados, by = "gid")
+  
+  # 5. Selecciona el GID con la fecha de llenado más reciente para cada ubicación
   ubicaciones_filtrado <- ubicaciones_actualizado %>%
     group_by(Circuito, Posicion) %>%
-    slice_min(Acumulacion, with_ties = FALSE) %>%
+    slice_max(Fecha, with_ties = FALSE) %>%  # Se queda con el de fecha más reciente
     ungroup()
   
-  # Eliminar filas en ubicaciones_repetidas si el gid existe en ubicaciones_filtrado
+  # 6. Retorna los GIDs que deben ser eliminados
   ubicaciones_repetidas_filtrado <- ubicaciones_repetidas_sin_duplicados %>%
     anti_join(ubicaciones_filtrado, by = "gid")
   
