@@ -3,6 +3,7 @@
 # 
 # asd <- funcion_calcular_ranking_deldia(fecha_consulta,df_informedeldia)
 
+
 ## Funcion para calcular el ranking dado un día.
 funcion_calcular_ranking_deldia <- function(fecha_consulta, df_informedeldia){
   
@@ -78,9 +79,15 @@ funcion_calcular_ranking_deldia <- function(fecha_consulta, df_informedeldia){
   ))
 }
 
+source("scripts/para_mapear/circuitos_planificados.R")
 
-fecha_consulta <- as.Date("2025-05-07")
-df_informedeldia <- historico_estado_diario %>% 
+
+
+inf_estado_diario <- historico_estado_diario
+
+
+fecha_consulta <- as.Date("2025-05-23")
+df_informedeldia <- inf_estado_diario %>% 
   filter(Fecha == fecha_consulta)
 
 asd <- funcion_calcular_ranking_deldia(fecha_consulta,df_informedeldia)
