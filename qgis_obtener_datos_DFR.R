@@ -91,16 +91,6 @@ for (full_name in ft_names) {
 
 
 
-
-
-
-
-
-
-
-
-
-
 # ============================================
 # SCRIPT COMPLETO: LISTAR TODAS LAS CAPAS DE UN WFS AUTENTICADO
 # ============================================

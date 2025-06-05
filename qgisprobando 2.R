@@ -153,7 +153,7 @@ leer_capa_geojson <- function(wfs_url, layer, out_file = NULL) {
 
 # Ejemplo de uso:
 wfs_url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-layer   <- "analisisdatos:v_lim_ultlevantes"
+layer   <- "v_lim_ultlevantes"
 
 mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "ultlevantes.json")
 View(mi_sf)

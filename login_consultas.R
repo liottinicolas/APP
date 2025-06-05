@@ -61,3 +61,16 @@ stop_for_status(resp_auth)
 cat("Login enviado. HTTP status:", status_code(resp_auth), "\n")
 
 
+# Justo después del POST de login, revisa la sesión con la URL correcta:
+url_test <- paste0(
+  "https://apex.imm.gub.uy/apex/r/prod/cons-exp/consultascsv?session=",
+  session_val
+)
+resp_test <- GET(url_test, handle = h)
+cat("Status code de prueba:", status_code(resp_test), "\n")
+
+
+
+
+
+
