@@ -1,0 +1,144 @@
+<!doctype html>
+<meta http-equiv="x-ua-compatible" content="IE=edge" />
+
+<!--[if lt IE 7]><html class="html-login no-js lt-ie10 lt-ie9 lt-ie8 lt-ie7" lang="es-uy"> <![endif]-->
+<!--[if IE 7]><html class="html-login no-js lt-ie10 lt-ie9 lt-ie8" lang="es-uy"> <![endif]-->
+<!--[if IE 8]><html class="html-login no-js lt-ie10 lt-ie9" lang="es-uy"> <![endif]-->
+<!--[if IE 9]><html class="html-login no-js lt-ie10" lang="es-uy"> <![endif]-->
+<!--[if gt IE 9]><!--> <html class="html-login no-js" lang="es-uy"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">  
+  <title>ConsultasExp - Log In</title>
+  <base href="/apex/" />
+<link rel="stylesheet" href="/images/app_ui/css/Core.min.css?v=22.2.0" type="text/css" />
+<link rel="stylesheet" href="/images/app_ui/css/Theme-Standard.min.css?v=22.2.0" type="text/css" />
+
+  <link rel="stylesheet" href="/images/libraries/font-apex/2.2.1/css/font-apex.min.css?v=22.2.0" type="text/css" />
+<link rel="stylesheet" href="/images/themes/theme_42/1.0/css/Core.min.css?v=22.2.0" type="text/css" />
+
+  
+  <link rel="stylesheet" href="r/prod/154/files/theme/101/v67/33101784942288869.css" type="text/css" />
+
+  <link rel="stylesheet" href="/images/pkgapp_ui/css/5.0.min.css?v=22.2.0" type="text/css" />
+
+  
+  <link rel="icon" href="/images/favicon.ico" /><link rel="apple-touch-icon" href="/images/favicon-180x180.png" />
+  
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="Pragma" content="no-cache" /><meta http-equiv="Expires" content="-1" /><meta http-equiv="Cache-Control" content="no-cache" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+</head>
+<body class="t-PageBody--login no-anim   apex-top-nav apex-icons-fontapex apex-theme-imm-intranet-style" >
+<form action="wwv_flow.accept?p_context=cons-exp/login_desktop/11948004424785" method="post" name="wwv_flow" id="wwvFlowForm" data-oj-binding-provider="none" novalidate  autocomplete="off">
+<input type="hidden" name="p_flow_id" value="154" id="pFlowId" /><input type="hidden" name="p_flow_step_id" value="101" id="pFlowStepId" /><input type="hidden" name="p_instance" value="11948004424785" id="pInstance" /><input type="hidden" name="p_page_submission_id" value="274756075962377046977667370492767099218" id="pPageSubmissionId" /><input type="hidden" name="p_request" value="" id="pRequest" /><input type="hidden" name="p_reload_on_submit" value="A" id="pReloadOnSubmit" /><input type="hidden" value="cons-exp&#x2F;login_desktop&#x2F;11948004424785" id="pContext" /><input type="hidden" value="274756075962377046977667370492767099218" id="pSalt" /><div class="t-Body">
+  
+  <span id="APEX_SUCCESS_MESSAGE" data-template-id="260846658031626045_S" class="apex-page-success u-hidden"></span><span id="APEX_ERROR_MESSAGE" data-template-id="260846658031626045_E" class="apex-page-error u-hidden"></span>
+  <div class="t-Body-wrap">
+    <div class="t-Body-col t-Body-col--main">
+      <div class="t-Login-container">
+      <div class="container">
+<div class="row">
+<div class="col col-12 apex-col-auto" >
+<div class="t-Login-region t-Form--stretchInputs t-Form--labelsAbove " id="R117586624384247537"  role="group" aria-labelledby="R117586624384247537_heading">
+  <div class="t-Login-header">
+    <span class="t-Login-logo "></span>
+    <h1 class="t-Login-title" id="R117586624384247537_heading">Consultas Exportables WEB</h1>
+  </div>
+  <div class="t-Login-body">
+    <div class="t-Form-fieldContainer rel-col icon-login-username apex-item-wrapper apex-item-wrapper--text-field" id="P101_USERNAME_CONTAINER"><div class="t-Form-labelContainer col col-null">
+<label for="P101_USERNAME" id="P101_USERNAME_LABEL" class="t-Form-label">Usuario</label>
+</div>
+<div class="t-Form-inputContainer col col-null"><input type="text"  id="P101_USERNAME" name="P101_USERNAME" required class="text_field&#x20;apex-item-text&#x20;icon-login-username" value="" size="10" maxlength="100"  /><span class="t-Login-iconValidation a-Icon icon-check"></span><span id="P101_USERNAME_error_placeholder" class="a-Form-error" data-template-id="260921599396626164_ET"></span></div></div><div class="t-Form-fieldContainer rel-col icon-login-password apex-item-wrapper apex-item-wrapper--password" id="P101_PASSWORD_CONTAINER"><div class="t-Form-labelContainer col col-null">
+<label for="P101_PASSWORD" id="P101_PASSWORD_LABEL" class="t-Form-label">Contraseña</label>
+</div>
+<div class="t-Form-inputContainer col col-null"><input type="password" name="P101_PASSWORD" size="10" maxlength="100" value=""  id="P101_PASSWORD" required class="password&#x20;apex-item-text&#x20;icon-login-password"  onkeypress="return apex.submit({request:'P101_PASSWORD',submitIfEnter:event})"  /><span class="t-Login-iconValidation a-Icon icon-check"></span><span id="P101_PASSWORD_error_placeholder" class="a-Form-error" data-template-id="260921599396626164_ET"></span></div></div>
+  </div>
+  <div class="t-Login-buttons">
+    <button onclick="apex.submit({request:&#x27;login&#x27;});" class="t-Button t-Button--hot " type="button"  id="B117586924241247547"><span class="t-Button-label">Conectar</span></button>
+  </div>
+  <div class="t-Login-links">
+    
+  </div>
+  
+</div>
+</div>
+</div>
+</div>
+      </div>
+    </div>
+  </div>
+</div><input type="hidden" id="pPageFormRegionChecksums" value="&#x5B;&#x5D;">
+<input type="hidden" id="pPageItemsRowVersion" value="" /><input type="hidden" id="pPageItemsProtected" value="&#x2F;io8rsdhW2kxVZqWO90wd5h7KrF1Z21dwVrJK67FB6rq8FDJP_vzo5R5UC91PXKQbjv65aaysBb8vXrMAihbd9Q" /></form>
+
+
+<script>
+var apex_img_dir = "\u002Fimages\u002F";
+var apex = {env: {APP_USER: "nobody",APP_ID: "154",APP_PAGE_ID: "101",APP_SESSION: "11948004424785",APP_FILES: "r\u002Fprod\u002F154\u002Ffiles\u002Fstatic\u002Fv5\u002F",WORKSPACE_FILES: "r\u002Fprod\u002Ffiles\u002Fstatic\u002Fv1\u002F",APEX_VERSION: "22.2.0",APEX_BASE_VERSION: "22.2"},
+libVersions:{ckeditor5:"35.0.1",cropperJs:"1.5.12",domPurify:"2.3.8",fullcalendar:"5.11.2",hammer:"2.0.8",jquery:"3.6.0",jqueryUi:"1.13.2",maplibre:"2.1.9",markedJs:"4.0.17",prismJs:"1.28.0",oraclejet:"12.1.3",monacoEditor:"0.32.1",lessJs:"4.1.3"}};
+</script>
+<script src="/images/libraries/apex/minified/desktop_all.min.js?v=22.2.0"></script>
+<script src="wwv_flow.js_messages?p_app_id=154&p_lang=es-uy&p_version=22.2.0-8984716207472"></script>
+<script src="/images/libraries/apex/minified/legacy_18.min.js?v=22.2.0"></script>
+<script src="/images/libraries/jquery-migrate/3.4.0/jquery-migrate-3.4.0.min.js?v=22.2.0"></script>
+
+
+<script src="/images/libraries/apex/minified/widget.apexTabs.min.js?v=22.2.0"></script>
+<script src="/images/libraries/apex/minified/widget.stickyWidget.min.js?v=22.2.0"></script>
+<script src="/images/libraries/apex/minified/widget.stickyTableHeader.min.js?v=22.2.0"></script>
+<script src="/images/themes/theme_42/1.0/js/modernizr-custom.min.js?v=22.2.0"></script>
+<script src="/images/plugins/com.oracle.apex.carousel/1.0/com.oracle.apex.carousel.min.js?v=22.2.0"></script>
+<script src="/images/themes/theme_42/1.0/js/theme42.min.js?v=22.2.0"></script>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+apex.jQuery( function() {
+apex.page.init( this, function() {
+try {
+(function(){
+var lTimeoutField = document.getElementById("apex_login_throttle_sec"),
+    lTimeout      = lTimeoutField ? +lTimeoutField.innerHTML : 0;
+if (lTimeout) {
+    var lTimer = window.setInterval (
+        function() {
+            if (lTimeout > 0) {
+                lTimeoutField.innerHTML = lTimeout;
+                lTimeout--;
+            } else {
+                window.clearInterval(lTimer);
+                var lDiv = document.getElementById("apex_login_throttle_div");
+                if (lDiv) {
+                    lDiv.parentNode.removeChild(lDiv);
+                    return true;
+                }
+            }
+        },
+        1000 );
+}})();
+} catch(e) {apex.debug.error(e)};
+apex.item.waitForDelayLoadItems().done(function() {
+try {
+apex.theme42.initializePage.appLogin();
+
+apex.item( 'P101_USERNAME' ).setFocus();
+} finally {
+apex.event.trigger(apex.gPageContext$,'apexreadyend');
+};
+});
+});
+});apex.pwa.cleanup( { serviceWorkerPath:'\u002Fapex\u002Fr\u002Fprod\u002Fcons-exp\u002Fsw.js?v=22.2.0-8984716207472\u0026lang=es-uy' } );
+</script>
+
+</body>
+</html>

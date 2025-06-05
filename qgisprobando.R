@@ -1,6 +1,10 @@
 library(httr)
 library(sf)
 library(dplyr)
+
+
+
+
 ############################################################################################################################
 ############################### OBTENER LAS POSICIONES #################################
 ############################################################################################################################
@@ -354,8 +358,8 @@ query <- list(
   typeName = "ide:V_DF_POSICIONES_MAPAWEB_GEOM",
   srsname = "EPSG:32721",
   outputFormat = "application/json"
-  #,
-  #maxFeatures = 10000  # Cambiar o quitar si querés más datos
+  ,
+  maxFeatures = 100  # Cambiar o quitar si querés más datos
 )
 
 # Hacer la consulta
@@ -1203,6 +1207,159 @@ smtp_send(
   )
 )
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#https://desa-geoserver.imm.gub.uy/geoserver/imm/ows?service=WFS&version=1.0.0&request=GetCapabilities
+# https://desa-geoserver.imm.gub.uy/geoserver/analisisdatos/ows?service=WFS&version=1.0.0&request=GetCapabilities
+#https://geoserver-ed.imm.gub.uy/geoserver/wfs?request=GetCapabilities
+# https://desa-geoserver.imm.gub.uy/geoserver/imm/ows?
+
+
+
+
+caps_url <- paste0(
+  "https://desa-geoserver.imm.gub.uy/geoserver/analisisdatos/ows?",
+  "service=WFS&",
+  "version=1.0.0&",
+  "request=GetCapabilities"
+)
+
+
+library(sf)
+
+caps_url <- "https://desa-geoserver.imm.gub.uy/geoserver/analisisdatos/ows?service=WFS&version=1.0.0&request=GetCapabilities"
+
+# Esto te mostrará en consola todos los feature types disponibles, con su nombre y CRS
+st_layers(caps_url)
+
+
+
+
+# 1) Escoge el layer que quieras, por ejemplo:
+layer_seleccionado <- "analisisdatos:oam_lim_levantes_historico"
+
+# 2) Construye la URL GetFeature con ese typeName
+wfs_url <- paste0(
+  "https://desa-geoserver.imm.gub.uy/geoserver/imm/ows?",
+  "service=WFS&",
+  "version=1.0.0&",
+  "request=GetFeature&",
+  "typeName=", layer_seleccionado, "&",
+  "outputFormat=application/json"
+)
+
+# 3) Llama a st_read() para bajarlo como sf
+sf_layer <- st_read(wfs_url)
+
+# 4) Verifica la estructura (sf es a la vez un data.frame con geometría)
+print(sf_layer)      # muestra primeras filas y el campo de geometría
+str(sf_layer)        # muestra columnas, tipos y la columna geométrica
+
+# 5) Si lo quieres puramente como data.frame (sin geometría), puedes hacer:
+df_layer <- st_set_geometry(sf_layer, NULL)
+head(df_layer)       # ves solo atributos tabulares
+
+
+Driver: WFS 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1            analisisdatos:lim_capa_ultlevantes                  11285      9                WGS 84
+2               analisisdatos:ad_lim_recorridos                    142      4                WGS 84
+3              analisisdatos:ad_lim_recorridos2                      0      0 WGS 84 / UTM zone 21S
+4                   analisisdatos:ad_municipios                      8      2 WGS 84 / UTM zone 21S
+5   analisisdatos:com_reclamos_fuera_contenedor                   3685     10                WGS 84
+6  analisisdatos:com_reclamos_fuera_contenedor2                      0      0                WGS 84
+7  analisisdatos:lim_capa_contenedoresinactivos                    522      8                WGS 84
+8        analisisdatos:lim_capa_ultlevantes_5am                 227791     10                WGS 84
+9             analisisdatos:oam_areas_liberadas                      0      0                WGS 84
+10              analisisdatos:oam_asentamientos                    439     16 WGS 84 / UTM zone 21S
+11     analisisdatos:oam_lim_levantes_historico         Point   300000      8 WGS 84 / UTM zone 21S
+12              analisisdatos:oam_sur_problemas                  32919     16 WGS 84 / UTM zone 21S
+13        analisisdatos:omo_eh2016_sec_censales       Polygon       26      2                WGS 84
+14                 analisisdatos:omo_siniestros         Point    99266     24                WGS 84
+15                analisisdatos:sur_mapa_calor2                   1500     20                WGS 84
+16            analisisdatos:v_ad_lim_recorridos                    144      6 WGS 84 / UTM zone 21S
+17               analisisdatos:v_com_anio_movil         Point   300000      3                WGS 84
+18              analisisdatos:v_lim_ultlevantes                  10982     10 WGS 84 / UTM zone 21S
+19             analisisdatos:v_lim_ultlevantes2                  10464     10 WGS 84 / UTM zone 21S
+20             analisisdatos:v_lim_ultlevantes3                  12078     10                WGS 84
+21             analisisdatos:v_lim_ultlevantes4                  12078     11                WGS 84
+22     analisisdatos:v_oam_areaslib_areatrabajo         Point      508     10                WGS 84
+23             analisisdatos:v_oam_sur_lim_g621                  10378     16 WGS 84 / UTM zone 21S
+24             analisisdatos:v_oam_sur_lim_g622                   8142     16 WGS 84 / UTM zone 21S
+25             analisisdatos:v_oam_sur_lim_g623                   4939     16 WGS 84 / UTM zone 21S
+26       analisisdatos:v_sime_parcelas_exp_insp                  41188      9 WGS 84 / UTM zone 21S
+
+
+
+
+
+
+
+
+
+library(httr)
+library(jsonlite)
+
+# 1. Definís tu usuario y contraseña (o token). 
+usuario <- "im4445285"
+clave   <- "Nico1919*"
+
+# 2. Hacés la llamada:
+resp <- GET(
+  url = "https://desa-geoserver.imm.gub.uy/geoserver/analisisdatos/ows?service=WFS&version=1.0.0&request=GetCapabilities",
+  authenticate(usuario, clave, type = "basic")
+)
+stop_for_status(resp)  # detiene si no respondió 200 OK
+
+texto_json <- content(resp, as = "text", encoding = "UTF-8")
+datos      <- fromJSON(texto_json, simplifyDataFrame = TRUE)
+
+# Ahora 'datos' es un data.frame (o lista) con la información.
+head(datos)
+
+
+# 1) Instala y carga xml2 (si no lo tienes ya)
+install.packages("xml2")
+library(xml2)
+
+# 2) Define la URL de GetCapabilities
+caps_url <- "https://geoserver-ed.imm.gub.uy/geoserver/wfs?service=WFS&version=1.0.0&request=GetCapabilities"
+
+# 3) Lee el XML completo
+xml_caps <- read_xml(caps_url)
+
+# 4) Busca todos los nodos <FeatureType>/<Name>
+name_nodes <- xml_find_all(xml_caps, ".//FeatureType/Name")
+
+# 5) Extrae el texto de cada uno: son los typeName completos
+type_names <- xml_text(name_nodes)
+
+# 6) Muéstralos en consola
+print(type_names)
+
+
+
+
+library(sf)
+
+# 1) URL correcta para GetCapabilities
+caps_url <- "https://geoserver-ed.imm.gub.uy/geoserver/ows?service=WFS&version=1.0.0&request=GetCapabilities"
+
+# 2) st_layers() ya se encarga de parsear el XML con namespaces y mostrar cada layer
+st_layers(caps_url)
 
 
 
