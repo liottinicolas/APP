@@ -2,7 +2,110 @@ library(httr)
 library(sf)
 library(dplyr)
 
+consulta <- "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO"
+nombre_archivo <- "posiciones_historico"
 
+asd <- funcion_obtener_df_DFR(consulta,nombre_archivo)
+
+asds <- asd %>%
+  group_by(GID) %>%
+  summarise(ns = n(), .groups = "drop")
+
+asd <- asd %>%
+  mutate(
+    # 1) Arreglamos la parte del año: si empieza con "00" (ej. "0023-..."), 
+    #    reemplazamos "00" por "20" para que quede "2023-..."
+    FECHA_DESDE = if_else(
+      substr(as.character(FECHA_DESDE), 1, 2) == "00",
+      sub("^00", "20", as.character(FECHA_DESDE)),
+      as.character(FECHA_DESDE)
+    ),
+    FECHA_HASTA = if_else(
+      substr(as.character(FECHA_HASTA), 1, 2) == "00",
+      sub("^00", "20", as.character(FECHA_HASTA)),
+      as.character(FECHA_HASTA)
+    ),
+    # 2) Ahora convertimos esas cadenas corregidas a Date
+    FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
+    FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
+  ) %>% 
+  mutate(
+    FCREA = ymd_hms(FCREA),
+    FACT  = ymd_hms(FACT)
+  )
+
+asd_filtrado <- asd %>%
+  # 1) Crear dos columnas auxiliares:
+  #    - prefix: todo lo que va antes del primer “_”
+  #    - numero: extraer los dígitos después del último “_” y convertirlos a numérico
+  mutate(
+    prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
+    numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
+  ) %>%
+  # 2) Filtrar según las dos condiciones:
+  #    a) prefix debe estar en el vector c("A","C","D","E","F","G","CH")
+  #    b) numero >= 100
+  filter(
+    prefix %in% c("A","C","D","E","F","G","CH"),
+    numero >= 100
+  ) %>%
+  # 3) (Opcional) Eliminar las columnas auxiliares si no las necesitas luego:
+  select(-prefix, -numero)
+
+hoy <- Sys.Date()
+
+asd_filtrado_malfecha <- asd_filtrado %>% 
+  filter(FECHA_HASTA > hoy)
+
+asd_corregido <- asd_filtrado_malfecha %>%
+  mutate(
+    # Reemplazamos FECHA_HASTA por la fecha extraída de FACT
+    FECHA_HASTA = as.Date(FACT)
+  )
+  
+  
+  
+  
+  
+  
+  
+
+
+funcion_obtener_df_DFR <- function(type,nombre_archivo){
+  
+  url <- "https://geoserver-ed.imm.gub.uy/geoserver/wfs"
+  archivo_json <- paste0(nombre_archivo, ".json")
+  
+  # Tu nombre de usuario (el mismo de QGIS) y tu contraseña (pedís al administrador si no la sabés)
+  usuario <- "im4445285"
+  contrasena <- "Nico1919*"
+  
+  # Parámetros de consulta WFS (el mismo tipo que QGIS)
+  query <- list(
+    service = "WFS",
+    version = "1.0.0",
+    request = "GetFeature",
+    typeName = type,
+    srsname = "EPSG:32721",
+    outputFormat = "application/json"
+  )
+  
+  # Hacer la consulta autenticada
+  respuesta <- GET(
+    url,
+    query = query,
+    authenticate(usuario, contrasena)
+  )
+  
+  # Guardar el GeoJSON temporalmente
+  writeBin(content(respuesta, "raw"), archivo_json)
+  
+  # Leer como objeto espacial
+  ret <- st_read(archivo_json)
+  
+  return(ret)
+    
+}
 
 
 # ############################################################################################################################
@@ -38,7 +141,6 @@ writeBin(content(respuesta, "raw"), "posiciones_recorrido.json")
 
 # Leer como objeto espacial
 posiciones <- st_read("posiciones_recorrido.json")
-
 
 
 ############################################################################################################################
