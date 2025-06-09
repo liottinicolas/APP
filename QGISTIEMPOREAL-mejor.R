@@ -146,8 +146,6 @@ ver <- datos_estado$features
 
 
 
-
-
 pp/limpieza-gestion-operativa/assets/config/config.json
 https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/configuracion/motivoNoLevante
 https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/configuracion/condicionContenedor

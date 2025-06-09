@@ -2,74 +2,7 @@ library(httr)
 library(sf)
 library(dplyr)
 
-consulta <- "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO"
-nombre_archivo <- "posiciones_historico"
-
-asd <- funcion_obtener_df_DFR(consulta,nombre_archivo)
-
-asds <- asd %>%
-  group_by(GID) %>%
-  summarise(ns = n(), .groups = "drop")
-
-asd <- asd %>%
-  mutate(
-    # 1) Arreglamos la parte del año: si empieza con "00" (ej. "0023-..."), 
-    #    reemplazamos "00" por "20" para que quede "2023-..."
-    FECHA_DESDE = if_else(
-      substr(as.character(FECHA_DESDE), 1, 2) == "00",
-      sub("^00", "20", as.character(FECHA_DESDE)),
-      as.character(FECHA_DESDE)
-    ),
-    FECHA_HASTA = if_else(
-      substr(as.character(FECHA_HASTA), 1, 2) == "00",
-      sub("^00", "20", as.character(FECHA_HASTA)),
-      as.character(FECHA_HASTA)
-    ),
-    # 2) Ahora convertimos esas cadenas corregidas a Date
-    FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
-    FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
-  ) %>% 
-  mutate(
-    FCREA = ymd_hms(FCREA),
-    FACT  = ymd_hms(FACT)
-  )
-
-asd_filtrado <- asd %>%
-  # 1) Crear dos columnas auxiliares:
-  #    - prefix: todo lo que va antes del primer “_”
-  #    - numero: extraer los dígitos después del último “_” y convertirlos a numérico
-  mutate(
-    prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
-    numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
-  ) %>%
-  # 2) Filtrar según las dos condiciones:
-  #    a) prefix debe estar en el vector c("A","C","D","E","F","G","CH")
-  #    b) numero >= 100
-  filter(
-    prefix %in% c("A","C","D","E","F","G","CH"),
-    numero >= 100
-  ) %>%
-  # 3) (Opcional) Eliminar las columnas auxiliares si no las necesitas luego:
-  select(-prefix, -numero)
-
-hoy <- Sys.Date()
-
-asd_filtrado_malfecha <- asd_filtrado %>% 
-  filter(FECHA_HASTA > hoy)
-
-asd_corregido <- asd_filtrado_malfecha %>%
-  mutate(
-    # Reemplazamos FECHA_HASTA por la fecha extraída de FACT
-    FECHA_HASTA = as.Date(FACT)
-  )
-  
-  
-  
-  
-  
-  
-  
-
+### FUNCIONES
 
 funcion_obtener_df_DFR <- function(type,nombre_archivo){
   
@@ -104,8 +37,393 @@ funcion_obtener_df_DFR <- function(type,nombre_archivo){
   ret <- st_read(archivo_json)
   
   return(ret)
-    
+  
 }
+
+
+guarda_posiciones_diarias <- function(consulta,
+                              nombre_archivo,
+                              fecha_inicio   = NULL,
+                              ruta_historico = paste0(nombre_archivo, ".rds")) {
+  # 0) Asegurar Date
+  fecha_fin <- as.Date(ultima_fecha_registro)
+  
+  # 1) Si no se pasa fecha_inicio, intentar extraer del histórico
+  if (is.null(fecha_inicio) && file.exists(ruta_historico)) {
+    historico <- readRDS(ruta_historico)
+    ultima_fecha <- max(historico$Fecha, na.rm = TRUE)
+    fecha_inicio <- ultima_fecha + 1
+  }
+  # 2) Si sigue NULL (primera corrida), procesar solo ayer
+  if (is.null(fecha_inicio)) {
+    fecha_inicio <- fecha_fin
+  } else {
+    fecha_inicio <- as.Date(fecha_inicio)
+  }
+  
+  # 3) Si no hay rango válido, salir
+  if (fecha_inicio > fecha_fin) {
+    message("ℹ️ No hay días nuevos por procesar (", fecha_inicio, " > ", fecha_fin, ").")
+    return(invisible(NULL))
+  }
+  
+  # 4) Generar secuencia de fechas
+  fechas <- seq.Date(from = fecha_inicio, to = fecha_fin, by = "day")
+  
+  # 5) Mapear cada fecha y acumular
+  nuevas_posiciones <- purrr::map_dfr(fechas, function(fecha) {
+    posiciones_dfr <- funcion_obtener_df_DFR(consulta, nombre_archivo) %>%
+      dplyr::mutate(GID = as.character(GID)) %>%
+      dplyr::rename(Direccion_dfr = DIRECCION)
+    
+    ubicaciones_deldia <- historico_ubicaciones %>%
+      dplyr::filter(Fecha == fecha) %>%
+      dplyr::mutate(
+        Direccion_consulta = ifelse(
+          is.na(Numero),
+          Calle,
+          paste(Calle, Numero)
+        )
+      )
+    
+    posiciones_dfr %>%
+      dplyr::left_join(
+        ubicaciones_deldia %>% dplyr::select(gid, Direccion_consulta),
+        by = c("GID" = "gid")
+      ) %>%
+      dplyr::mutate(
+        Direccion_dfr = dplyr::coalesce(Direccion_dfr, Direccion_consulta, "NO HAY DIRECCION"),
+        Fecha = fecha
+      ) %>%
+      dplyr::select(-Direccion_consulta)
+  }) %>%
+    dplyr::distinct()
+  
+  # 6) Crear o actualizar histórico
+  if (!file.exists(ruta_historico)) {
+    saveRDS(nuevas_posiciones, file = ruta_historico)
+    message("📦 Histórico creado en: ", ruta_historico)
+    return(nuevas_posiciones)
+  } else {
+    historico <- readRDS(ruta_historico)
+    historico_actualizado <- dplyr::bind_rows(historico, nuevas_posiciones) %>%
+      dplyr::distinct()
+    saveRDS(historico_actualizado, file = ruta_historico)
+    message("🔄 Histórico actualizado en: ", ruta_historico)
+    return(historico_actualizado)
+  }
+}
+
+#---------------------------------------------------------------
+# Función: actualizar_posiciones_historico
+#
+# Parámetros:
+#   consulta      : el string con el nombre de la consulta 
+#                   (p.ej. "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO")
+#   nombre_archivo: nombre base para el archivo RDS donde se guardará 
+#                   la versión procesada (p.ej. "posiciones_historico")
+#
+# Comportamiento:
+#   1) Si "<nombre_archivo>.rds" NO existe:
+#       - Descarga y procesa TODO.
+#       - Añade Fecha_agregado = Sys.Date() a cada fila.
+#       - Guarda el dataframe completo en "<nombre_archivo>.rds".
+#       - Devuelve ese dataframe completo.
+#
+#   2) Si "<nombre_archivo>.rds" ya existe:
+#       - Lee la versión anterior desde disco (df_anterior).
+#       - Descarga y procesa TODO de nuevo (df_actual).
+#       - Calcula filas nuevas (anti_join por GID).
+#           · Si hay filas nuevas:
+#               a) A esas filas nuevas les agrega Fecha_agregado = Sys.Date().
+#               b) Concatena al RDS previo y sobrescribe "<nombre_archivo>.rds".
+#               c) Devuelve el dataframe completo actualizado (viejos + nuevos).
+#           · Si NO hay filas nuevas:
+#               a) No modifica el RDS.
+#               b) Devuelve el dataframe completo tal cual estaba (df_anterior).
+#---------------------------------------------------------------
+actualizar_posiciones_historico <- function(consulta, nombre_archivo) {
+  # 1) Definir la ruta al archivo RDS local
+  archivo_rds <- paste0(nombre_archivo, ".rds")
+  
+  # 2) Función interna que descarga y aplica TODO tu pipeline original,
+  #    reemplazando rows_update() por un mutate(...) con if_else().
+  procesar_df_completo <- function() {
+    # 2.1) Descargar crudo desde el servidor
+    df <- funcion_obtener_df_DFR(consulta, nombre_archivo)
+    
+    # 2.2) Corregir años "00xx" → "20xx" y convertir a Date
+    df <- df %>%
+      mutate(
+        FECHA_DESDE = if_else(
+          substr(as.character(FECHA_DESDE), 1, 2) == "00",
+          sub("^00", "20", as.character(FECHA_DESDE)),
+          as.character(FECHA_DESDE)
+        ),
+        FECHA_HASTA = if_else(
+          substr(as.character(FECHA_HASTA), 1, 2) == "00",
+          sub("^00", "20", as.character(FECHA_HASTA)),
+          as.character(FECHA_HASTA)
+        ),
+        FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
+        FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
+      ) %>%
+      # 2.3) Convertir FCREA y FACT a POSIXct
+      mutate(
+        FCREA = ymd_hms(FCREA),
+        FACT  = ymd_hms(FACT)
+      )
+    
+    # 2.4) Filtrar por prefix y número extraído de COD_RECORRIDO
+    df <- df %>%
+      mutate(
+        prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
+        numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
+      ) %>%
+      filter(
+        prefix %in% c("A","C","D","E","F","G","CH"),
+        numero >= 100
+      ) %>%
+      select(-prefix, -numero)
+    
+    # 2.5) Corregir FECHA_HASTA “mal” si es > hoy, usando mutate() + if_else()
+    hoy <- Sys.Date()
+    df <- df %>%
+      mutate(
+        FECHA_HASTA = if_else(
+          FECHA_HASTA > hoy,
+          as.Date(FACT),   # reemplazo por la fecha de FACT
+          FECHA_HASTA
+        )
+      )
+    
+    return(df)
+  }
+  
+  # 3) Si NO existe el RDS, primera descarga + guardado
+  if (!file.exists(archivo_rds)) {
+    message("No se encontró '", archivo_rds, "'. Descargando y procesando TODO por primera vez...")
+    
+    df_completo <- procesar_df_completo()
+    # 3.1) Agregar Fecha_agregado = Sys.Date() a todas las filas
+    df_completo <- df_completo %>%
+      mutate(Fecha_agregado = Sys.Date())
+    
+    # 3.2) Guardar en disco
+    saveRDS(df_completo, archivo_rds)
+    
+    # 3.3) Devolver el dataframe completo
+    return(df_completo)
+  }
+  
+  # 4) Si el RDS ya existe, sólo buscar diferencias y actualizar si hace falta
+  message("El archivo existe. Leyendo versión previa ('", archivo_rds, "')...")
+  df_anterior <- readRDS(archivo_rds)
+  
+  message("Descargando y procesando la versión actual nuevamente...")
+  df_actual <- procesar_df_completo()
+  
+  # 4.1) Identificar filas nuevas (por GID)
+  df_nuevos <- df_actual %>%
+    filter(! GID %in% df_anterior$GID)
+  
+  # 4.2) Si hay filas nuevas, agrego Fecha_agregado y actualizo el RDS
+  if (nrow(df_nuevos) > 0) {
+    message(nrow(df_nuevos), " registros nuevos encontrados. Actualizando '", archivo_rds, "'...")
+    
+    df_nuevos <- df_nuevos %>%
+      mutate(Fecha_agregado = Sys.Date())
+    
+    df_actualizado <- bind_rows(df_anterior, df_nuevos)
+    saveRDS(df_actualizado, archivo_rds)
+    
+    # 4.3) Devolver siempre el dataframe completo actualizado
+    return(df_actualizado)
+  }
+  
+  # 4.4) Si NO hay filas nuevas, devolver el dataframe completo tal cual estaba
+  message("No hay registros nuevos (por GID). Devolviendo el histórico completo sin cambios.")
+  return(df_anterior)
+}
+
+
+### IMPLEMENTACION
+
+resultado <- guarda_posiciones_diarias(
+  consulta       = "dfr:E_DF_POSICIONES_RECORRIDO",     # tu objeto de consulta
+  nombre_archivo = "historico_posiciones_dia"     # creará/actualizará historic_posiciones.rds
+)
+
+
+# 1) Primera llamada → descarga todo, guarda el RDS y devuelve el DF completo con Fecha_agregado
+todos_los_datos <- actualizar_posiciones_historico(
+  consulta       = "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO",
+  nombre_archivo = "posiciones_historico"
+)
+
+
+# 
+# consulta <- "dfr:E_DF_POSICIONES_RECORRIDO"
+# nombre_archivo <- "posiciones_diario"
+# 
+# asd <- funcion_obtener_df_DFR(consulta,nombre_archivo)
+# 
+# asds <- asd %>%
+#   group_by(GID) %>%
+#   summarise(ns = n(), .groups = "drop")
+# 
+# asd <- asd %>%
+#   mutate(
+#     # 1) Arreglamos la parte del año: si empieza con "00" (ej. "0023-..."),
+#     #    reemplazamos "00" por "20" para que quede "2023-..."
+#     FECHA_DESDE = if_else(
+#       substr(as.character(FECHA_DESDE), 1, 2) == "00",
+#       sub("^00", "20", as.character(FECHA_DESDE)),
+#       as.character(FECHA_DESDE)
+#     ),
+#     FECHA_HASTA = if_else(
+#       substr(as.character(FECHA_HASTA), 1, 2) == "00",
+#       sub("^00", "20", as.character(FECHA_HASTA)),
+#       as.character(FECHA_HASTA)
+#     ),
+#     # 2) Ahora convertimos esas cadenas corregidas a Date
+#     FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
+#     FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
+#   ) %>%
+#   mutate(
+#     FCREA = ymd_hms(FCREA),
+#     FACT  = ymd_hms(FACT)
+#   )
+# 
+# asd_filtrado <- asd %>%
+#   # 1) Crear dos columnas auxiliares:
+#   #    - prefix: todo lo que va antes del primer “_”
+#   #    - numero: extraer los dígitos después del último “_” y convertirlos a numérico
+#   mutate(
+#     prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
+#     numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
+#   ) %>%
+#   # 2) Filtrar según las dos condiciones:
+#   #    a) prefix debe estar en el vector c("A","C","D","E","F","G","CH")
+#   #    b) numero >= 100
+#   filter(
+#     prefix %in% c("A","C","D","E","F","G","CH"),
+#     numero >= 100
+#   ) %>%
+#   # 3) (Opcional) Eliminar las columnas auxiliares si no las necesitas luego:
+#   select(-prefix, -numero)
+# 
+# hoy <- Sys.Date()
+# 
+# asd_filtrado_malfecha <- asd_filtrado %>%
+#   filter(FECHA_HASTA > hoy)
+# 
+# asd_corregido <- asd_filtrado_malfecha %>%
+#   mutate(
+#     # Reemplazamos FECHA_HASTA por la fecha extraída de FACT
+#     FECHA_HASTA = as.Date(FACT)
+#   )
+# 
+# 
+# 
+# consulta <- "dfr:E_DF_POSICIONES_RECORRIDO"
+# nombre_archivo <- "posiciones_diario"
+# 
+# 
+# fecha_hoy <- Sys.Date()-1
+# posiciones_dfr <- funcion_obtener_df_DFR(consulta,nombre_archivo)
+# posiciones_dfr <- posiciones_dfr %>%
+#   mutate(GID = as.character(GID)) %>%
+#   rename(Direccion_dfr = DIRECCION)
+# 
+# 
+# ubicaciones_deldia <- historico_ubicaciones %>%
+#   filter(Fecha == fecha_hoy) %>%
+#   mutate(
+#     Direccion_consulta = if_else(
+#       is.na(Numero),
+#       Calle,
+#       paste(Calle, Numero)
+#     )
+#   )
+# 
+# 
+# posiciones_completas_deldia <- posiciones_dfr %>%
+#   # 1) Unir el histórico para traer la columna Calle según coincidencia de GID ↔ gid
+#   left_join(
+#     ubicaciones_deldia %>% select(gid, Direccion_consulta),
+#     by = c("GID" = "gid")
+#   ) %>%
+#   # 2) Rellenar DIRECCION: si ya existía, mantenerla;
+#   #    si era NA y llega Calle, usar Calle;
+#   #    si sigue siendo NA, poner "NO HAY DIRECCION"
+#   mutate(
+#     Direccion_dfr = coalesce(Direccion_dfr, Direccion_consulta, "NO HAY DIRECCION")
+#   ) %>%
+#   mutate(Fecha = fecha_hoy)
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# guarda_posiciones <- function(consulta, nombre_archivo,
+#                               ruta_historico = paste0("historico_", nombre_archivo, ".rds")) {
+#   # 1) Fecha objetivo (ayer)
+#   fecha_hoy <- Sys.Date() - 1
+# 
+#   # 2) Obtener y preparar las posiciones
+#   posiciones_dfr <- funcion_obtener_df_DFR(consulta, nombre_archivo) %>%
+#     dplyr::mutate(GID = as.character(GID)) %>%
+#     dplyr::rename(Direccion_dfr = DIRECCION)
+# 
+#   # 3) Filtrar ubicaciones históricas del día
+#   ubicaciones_deldia <- historico_ubicaciones %>%
+#     dplyr::filter(Fecha == fecha_hoy) %>%
+#     dplyr::mutate(
+#       Direccion_consulta = ifelse(
+#         is.na(Numero),
+#         Calle,
+#         paste(Calle, Numero)
+#       )
+#     )
+# 
+#   # 4) Generar nuevas posiciones con dirección y fecha
+#   nuevas_posiciones <- posiciones_dfr %>%
+#     dplyr::left_join(
+#       ubicaciones_deldia %>% dplyr::select(gid, Direccion_consulta),
+#       by = c("GID" = "gid")
+#     ) %>%
+#     dplyr::mutate(
+#       Direccion_dfr = dplyr::coalesce(Direccion_dfr, Direccion_consulta, "NO HAY DIRECCION"),
+#       Fecha = fecha_hoy
+#     ) %>%
+#     dplyr::select(-Direccion_consulta)
+# 
+#   # 5) Guardar o actualizar el histórico
+#   if (!file.exists(ruta_historico)) {
+#     nuevas_posiciones <- nuevas_posiciones %>%
+#       distinct()
+#     saveRDS(nuevas_posiciones, file = ruta_historico)
+#     message("📦 Histórico creado en: ", ruta_historico)
+#     return(nuevas_posiciones)
+#   } else {
+#     historico <- readRDS(ruta_historico)
+#     historico_actualizado <- dplyr::bind_rows(historico, nuevas_posiciones)
+#     historico_actualizado <- historico_actualizado %>%
+#       distinct()
+#     saveRDS(historico_actualizado, file = ruta_historico)
+#     message("🔄 Histórico actualizado en: ", ruta_historico)
+#     return(historico_actualizado)
+#   }
+# }
+# 
+# 
+# 
+
+
 
 
 # ############################################################################################################################
@@ -1465,6 +1783,150 @@ st_layers(caps_url)
 
 
 
+library(dplyr)
+library(lubridate)
 
 
 
+
+
+
+
+
+
+
+
+
+# 
+# #---------------------------------------------------------------
+# # Función: guardar_posiciones
+# #
+# # Parámetros:
+# #   consulta      : el string con el nombre de la consulta 
+# #                   (p.ej. "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO")
+# #   nombre_archivo: nombre base para el archivo RDS donde se guardará 
+# #                   la versión procesada (p.ej. "posiciones_historico")
+# #
+# # Comportamiento:
+# #   1) Si "<nombre_archivo>.rds" NO existe:
+# #       - Descarga y procesa TODO.
+# #       - Añade Fecha_agregado = Sys.Date() a cada fila.
+# #       - Guarda el dataframe completo en "<nombre_archivo>.rds".
+# #       - Devuelve ese dataframe completo.
+# #
+# #   2) Si "<nombre_archivo>.rds" ya existe:
+# #       - Lee la versión anterior desde disco (df_anterior).
+# #       - Descarga y procesa TODO de nuevo (df_actual).
+# #       - Detecta filas nuevas (anti_join por GID).
+# #           · A los registros nuevos les asigna Fecha_agregado = Sys.Date().
+# #       - Concatena df_anterior + df_nuevos (si los hay).
+# #       - **Guarda siempre** el RDS resultante (incluso si no hubo registros nuevos).
+# #       - Devuelve el dataframe completo actualizado.
+# #---------------------------------------------------------------
+# actualizar_posiciones_historico_guardado_forzoso <- function(consulta, nombre_archivo) {
+#   # 1) Ruta al archivo RDS local
+#   archivo_rds <- paste0(nombre_archivo, ".rds")
+#   
+#   # 2) Función interna para descargar y aplicar tu pipeline original,
+#   #    usando mutate(...) en lugar de rows_update()
+#   procesar_df_completo <- function() {
+#     # 2.1) Descargar crudo desde el servidor
+#     df <- funcion_obtener_df_DFR(consulta, nombre_archivo)
+#     
+#     # 2.2) Corregir años "00xx" → "20xx" y convertir a Date
+#     df <- df %>%
+#       mutate(
+#         FECHA_DESDE = if_else(
+#           substr(as.character(FECHA_DESDE), 1, 2) == "00",
+#           sub("^00", "20", as.character(FECHA_DESDE)),
+#           as.character(FECHA_DESDE)
+#         ),
+#         FECHA_HASTA = if_else(
+#           substr(as.character(FECHA_HASTA), 1, 2) == "00",
+#           sub("^00", "20", as.character(FECHA_HASTA)),
+#           as.character(FECHA_HASTA)
+#         ),
+#         FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
+#         FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
+#       ) %>%
+#       # 2.3) Convertir FCREA y FACT a POSIXct
+#       mutate(
+#         FCREA = ymd_hms(FCREA),
+#         FACT  = ymd_hms(FACT)
+#       )
+#     
+#     # 2.4) Filtrar por prefix y número extraído de COD_RECORRIDO
+#     df <- df %>%
+#       mutate(
+#         prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
+#         numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
+#       ) %>%
+#       filter(
+#         prefix %in% c("A","C","D","E","F","G","CH"),
+#         numero >= 100
+#       ) %>%
+#       select(-prefix, -numero)
+#     
+#     # 2.5) Corregir FECHA_HASTA “mal” si es > hoy, usando mutate() + if_else()
+#     hoy <- Sys.Date()
+#     df <- df %>%
+#       mutate(
+#         FECHA_HASTA = if_else(
+#           FECHA_HASTA > hoy,
+#           as.Date(FACT),   # reemplazo por la fecha de FACT
+#           FECHA_HASTA
+#         )
+#       )
+#     
+#     return(df)
+#   }
+#   
+#   # 3) Si NO existe el RDS: primera descarga + guardado
+#   if (!file.exists(archivo_rds)) {
+#     message("No se encontró '", archivo_rds, "'. Descargando y procesando TODO por primera vez...")
+#     
+#     df_completo <- procesar_df_completo()
+#     # 3.1) Asignar Fecha_agregado = Sys.Date() a todas las filas
+#     df_completo <- df_completo %>%
+#       mutate(Fecha_agregado = Sys.Date())
+#     
+#     # 3.2) Guardar el dataframe completo en disco
+#     saveRDS(df_completo, archivo_rds)
+#     
+#     # 3.3) Devolver el dataframe completo
+#     return(df_completo)
+#   }
+#   
+#   # 4) Si el RDS ya existe: siempre descargar, procesar y guardar
+#   message("El archivo existe. Leyendo versión previa ('", archivo_rds, "')...")
+#   df_anterior <- readRDS(archivo_rds)
+#   
+#   message("Descargando y procesando la versión actual nuevamente...")
+#   df_actual <- procesar_df_completo()
+#   
+#   # 4.1) Detectar filas nuevas por GID
+#   df_nuevos <- df_actual %>%
+#     anti_join(df_anterior, by = "GID")
+#   
+#   # 4.2) Si hay filas nuevas, asignar Fecha_agregado = Sys.Date()
+#   if (nrow(df_nuevos) > 0) {
+#     df_nuevos <- df_nuevos %>%
+#       mutate(Fecha_agregado = Sys.Date())
+#     message(nrow(df_nuevos), " registros nuevos encontrados.")
+#   } else {
+#     message("No se encontraron registros nuevos.")
+#   }
+#   
+#   # 4.3) Concatenar df_anterior + df_nuevos (si los hay)
+#   #      Para los existentes, conservamos su Fecha_agregado original (si existía).
+#   #      Si df_nuevos está vacío, bind_rows() no altera nada.
+#   df_completo_actualizado <- bind_rows(df_anterior, df_nuevos)
+#   
+#   # 4.4) **GUARDADO FORZOSO**: siempre sobrescribimos el RDS
+#   saveRDS(df_completo_actualizado, archivo_rds)
+#   message("Archivo '", archivo_rds, "' guardado (forzoso) con ",
+#           nrow(df_completo_actualizado), " filas totales.")
+#   
+#   # 4.5) Devolver siempre el dataframe completo actualizado
+#   return(df_completo_actualizado)
+# }
