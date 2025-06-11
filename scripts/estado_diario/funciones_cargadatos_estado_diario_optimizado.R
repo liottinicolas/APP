@@ -54,6 +54,7 @@ limpiar_duplicados_estado_diario <- function(ruta_RDS_datos) {
 #' 
 #' @param ruta_datos Ruta donde se guardará el archivo RDS
 #' @return Dataframe con el estado diario global actualizado
+#' ruta_datos <- ruta_RDS_datos
 actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   
   ubicaciones <- historico_ubicaciones
@@ -70,16 +71,19 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
   
   # Si ya existen datos históricos
   if (length(estado_diario_global) > 0) {
-    
+    print("Cargando datos históricos existentes...")
     # Determinar período a procesar: desde último día registrado hasta hoy
     ultimo_dia_con_modificacion <- max(estado_diario_global$Fecha)
     inicio_dia_con_modificacion <- ultimo_dia_con_modificacion + 1
     fecha_fin <- max(historico_llenado$Fecha) + 1
     
+    print(paste("Procesando desde", inicio_dia_con_modificacion, "hasta", fecha_fin))
+    
     # Verificar si existen nuevas fechas a procesar
     fechas <- sort(unique(ubicaciones$Fecha[ubicaciones$Fecha > ultimo_dia_con_modificacion]))
     
     if(length(fechas) > 0) {
+      print(paste("Se encontraron", length(fechas), "días nuevos para procesar"))
       # Lista para almacenar informes diarios de fechas nuevas
       lista_cambios <- list()
       
@@ -87,13 +91,17 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
       for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin, by = "day")) {
         fecha <- as.Date(i, origin = "1970-01-01")
         
+        print(paste("Procesando día:", fecha))
         # Calcular estado diario para esta fecha
         informe_del_dia <- funcion_calcular_estado_diario(fecha)
+        informe_modificado <- funcion_modificar_informe_diario(informe_del_dia)
         
         # Almacenar informe si tiene contenido
         if(nrow(informe_del_dia) > 0) {
-          lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
-          print(paste("Procesando día:", fecha))
+          lista_cambios[[length(lista_cambios) + 1]] <- informe_modificado
+          print(paste("✓ Día", fecha, "agregado con", nrow(informe_del_dia), "registros"))
+        } else {
+          print(paste("✗ Día", fecha, "sin registros"))
         }
       }
       
@@ -119,27 +127,36 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     }
     
   } else {
+    print("Iniciando primera carga de datos...")
     # Primera ejecución: procesar desde fecha inicial fija
     
     fecha_inicio <- as.Date("2025-02-15")
     fecha_fin <- max(historico_llenado$Fecha) + 1
+    
+    print(paste("Procesando desde", fecha_inicio, "hasta", fecha_fin))
     
     # Lista para almacenar los informes diarios
     lista_cambios <- list()
     
     # Procesar todos los días desde fecha inicio hasta la fecha actual
     for(i in seq.Date(fecha_inicio, fecha_fin, by = "day")) {
-      
       fecha <- as.Date(i, origin = "1970-01-01")
       
+      print(paste("Procesando día:", fecha))
       # Calcular y modificar estado diario
       informe_del_dia <- funcion_calcular_estado_diario(fecha)
       informe_modificado <- funcion_modificar_informe_diario(informe_del_dia)
       
+      # asd <- informe_del_dia %>% 
+      #   group_by(gid) %>% 
+      #   summarise(n = n())
+      
       # Almacenar si hay resultados
       if(nrow(informe_del_dia) > 0) {
         lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
-        print(paste("Procesando día:", fecha))
+        print(paste("✓ Día", fecha, "agregado con", nrow(informe_del_dia), "registros"))
+      } else {
+        print(paste("✗ Día", fecha, "sin registros"))
       }
     }
     
@@ -211,7 +228,7 @@ funcion_calcular_estado_diario <- function(dia){
     ungroup() %>% 
     distinct(gid, .keep_all = TRUE)
   
-  # Unir ubicaciones con datos de último levante
+  # Unir ubicaciones con datos de último levante y eliminar duplicados
   historico_ubicaciones_dia_informe <- ubicaciones_dia_informe %>%
     left_join(
       df_llenadodiario_ultimodia %>%
@@ -219,17 +236,17 @@ funcion_calcular_estado_diario <- function(dia){
                Porcentaje_llenado, Numero_caja, Id_viaje, the_geom, 
                Condicion, Id_motivo_inactiva, Acumulacion, gid),
       by = "gid"
-    )
+    ) %>%
+    group_by(Fecha, Circuito_corto, Posicion) %>%
+    mutate(
+      es_unico = n() == 1,
+      Acumulacion = if_else(is.na(Acumulacion) & es_unico, 1, Acumulacion)
+    ) %>%
+    ungroup() %>%
+    select(-es_unico)
   
   # Preparar informe diario inicial
   informe_diario <- historico_ubicaciones_dia_informe
-  
-  # Eliminar GIDs repetidos/inactivos
-  gid_repetidos <- eliminar_gids_inactivos(historico_ubicaciones, historico_ubicaciones_dia_informe)
-  
-  # Filtrar para mantener solo contenedores activos
-  informe_diario_filtrado <- informe_diario %>%
-    anti_join(gid_repetidos, by = "gid")
   
   # Procesamiento de contenedores agregados recientemente
   contenedores_agregados <- historico_ubicaciones_cambio_de_estado %>% 
@@ -247,7 +264,7 @@ funcion_calcular_estado_diario <- function(dia){
     mutate(Acumulacion = as.numeric(difftime(dia, Fecha, units = "days"))) 
   
   # Actualizar acumulación en el informe con info de contenedores recién agregados
-  informe_diario_filtrado <- informe_diario_filtrado %>%
+  informe_diario_filtrado <- informe_diario %>%
     left_join(contenedores_agregados %>% select(gid, Acumulacion),
               by = "gid", suffix = c("", ".agg")) %>%
     mutate(Acumulacion = ifelse(!is.na(Acumulacion.agg) & Acumulacion.agg < Acumulacion,
@@ -318,9 +335,13 @@ funcion_modificar_informe_diario <- function(df_informediario){
     ) %>% 
       distinct(gid, Fecha, .keep_all = TRUE)
     
-    # Actualizar informe con los contenedores que requieren modificación
+    # Actualizar informe con contenedores históricos no levantados
     informe_diario_corregido <- df_informediario %>%
-      rows_update(contenedores_a_modificar_acumulacion, by = c("gid", "Fecha"))
+      distinct(gid, Fecha, .keep_all = TRUE) %>%
+      rows_update(
+        contenedores_a_modificar_acumulacion,
+        by = c("gid", "Fecha")
+      )
     
     # Preparar datos a guardar (contenedores modificados hoy)
     datos_a_guardar <- informe_diario_corregido %>%
@@ -378,11 +399,16 @@ funcion_modificar_informe_diario <- function(df_informediario){
     contenedores_a_modificar_acumulacion <- funcion_obtener_df_de_contenedores_a_modificar_acumulacion(
       dia, 
       df_informediario
-    )
+    ) %>% 
+      distinct(gid, Fecha, .keep_all = TRUE)
     
-    # Actualizar informe
+    # Actualizar informe con contenedores históricos no levantados
     informe_diario_corregido <- df_informediario %>%
-      rows_update(contenedores_a_modificar_acumulacion, by = c("gid", "Fecha"))
+      distinct(gid, Fecha, .keep_all = TRUE) %>%
+      rows_update(
+        contenedores_a_modificar_acumulacion,
+        by = c("gid", "Fecha")
+      )
     
     # Preparar datos a guardar
     datos_a_guardar <- informe_diario_corregido %>%
@@ -444,7 +470,8 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
     contenedores_levantados_por_gruapluma, 
     by = c("Fecha", "Circuito_corto", "Posicion")
   ) %>% 
-    filter(Acumulacion > 1)
+    filter(Acumulacion > 1) %>%
+    distinct(gid, Fecha, .keep_all = TRUE)  # Asegurar que no haya duplicados
   
   # Preparar dataframe final con las modificaciones necesarias
   contenedores_a_modificar_acumulacion <- contenedores_a_modificar_acumulacion %>% 
@@ -462,7 +489,8 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
       Numero_caja = NA,
       Incidencia = NA_character_,
       Condicion = ""
-    ) 
+    ) %>%
+    distinct(gid, Fecha, .keep_all = TRUE)  # Asegurar que no haya duplicados al final
   
   return(contenedores_a_modificar_acumulacion)
 }
@@ -694,6 +722,118 @@ arreglar_informediario_viejo <- function(){
   
   # Función sin finalizar - pendiente implementación completa
   return(historico_estadodiario_versionanterior)
-} 
+}
+
+#' Compara GIDs entre históricos de estado diario y ubicaciones
+#' 
+#' Identifica los GIDs que están en el histórico de ubicaciones pero no en el
+#' histórico de estado diario, mostrando las discrepancias día a día.
+#' Excluye los circuitos B_01 hasta B_07.
+#' Exporta los resultados a un archivo Excel.
+#' 
+#' @param ruta_estado_diario Ruta al archivo RDS del estado diario
+#' @param ruta_excel Ruta donde se guardará el archivo Excel (opcional)
+#' @return Lista con diferencias encontradas por día
+funcion_comparar_gids_historicos <- function(ruta_estado_diario, ruta_excel = NULL) {
+  
+  # Cargar datos históricos
+  estado_diario <- readRDS(ruta_estado_diario)
+  
+  # Obtener fechas únicas de ambos históricos
+  fechas_estado_diario <- unique(estado_diario$Fecha)
+  fechas_ubicaciones <- unique(historico_ubicaciones$Fecha)
+  
+  # Lista para almacenar resultados
+  diferencias_por_dia <- list()
+  
+  # Procesar cada fecha
+  for(fecha in sort(union(fechas_estado_diario, fechas_ubicaciones))) {
+    
+    # Filtrar datos para la fecha actual
+    gids_estado_diario <- estado_diario %>%
+      filter(Fecha == fecha) %>%
+      select(gid, Circuito_corto, Posicion)
+    
+    gids_ubicaciones <- historico_ubicaciones %>%
+      filter(Fecha == fecha) %>%
+      select(gid, Circuito_corto, Posicion) %>%
+      # Excluir circuitos B_01 hasta B_07
+      filter(!(Circuito_corto %in% paste0("B_0", 1:7)))
+    
+    # Encontrar GIDs que están en ubicaciones pero no en estado diario
+    gids_solo_en_ubicaciones <- anti_join(gids_ubicaciones, gids_estado_diario, by = "gid")
+    
+    # Si hay diferencias, guardarlas
+    if(nrow(gids_solo_en_ubicaciones) > 0) {
+      diferencias_por_dia[[as.character(fecha)]] <- list(
+        fecha = fecha,
+        gids_faltantes = gids_solo_en_ubicaciones
+      )
+    }
+  }
+  
+  # Imprimir resumen
+  if(length(diferencias_por_dia) > 0) {
+    cat("\nGIDs que están en ubicaciones pero no en estado diario (excluyendo B_01-B_07):\n")
+    for(fecha in names(diferencias_por_dia)) {
+      cat("\nFecha:", fecha, "\n")
+      cat("GIDs faltantes:", nrow(diferencias_por_dia[[fecha]]$gids_faltantes), "\n")
+      print(diferencias_por_dia[[fecha]]$gids_faltantes)
+      cat("\n")
+    }
+    
+    # Exportar a Excel si se proporciona una ruta
+    if(!is.null(ruta_excel)) {
+      # Crear un workbook
+      wb <- createWorkbook()
+      
+      # Agregar una hoja de resumen
+      addWorksheet(wb, "Resumen")
+      
+      # Crear dataframe de resumen
+      resumen <- data.frame(
+        Fecha = character(),
+        GIDs_Faltantes = integer(),
+        stringsAsFactors = FALSE
+      )
+      
+      # Llenar el resumen
+      for(fecha in names(diferencias_por_dia)) {
+        resumen <- rbind(resumen, data.frame(
+          Fecha = fecha,
+          GIDs_Faltantes = nrow(diferencias_por_dia[[fecha]]$gids_faltantes),
+          stringsAsFactors = FALSE
+        ))
+      }
+      
+      # Escribir resumen
+      writeData(wb, "Resumen", resumen)
+      
+      # Agregar una hoja por cada fecha con diferencias
+      for(fecha in names(diferencias_por_dia)) {
+        nombre_hoja <- gsub("-", "", fecha) # Eliminar guiones del nombre
+        addWorksheet(wb, nombre_hoja)
+        writeData(wb, nombre_hoja, diferencias_por_dia[[fecha]]$gids_faltantes)
+      }
+      
+      # Guardar el archivo
+      saveWorkbook(wb, ruta_excel, overwrite = TRUE)
+      cat("\nResultados exportados a:", ruta_excel, "\n")
+    }
+  } else {
+    cat("\nNo se encontraron GIDs en ubicaciones que no estén en estado diario.\n")
+  }
+  
+  return(diferencias_por_dia)
+}
 
 # nolint end: line_length_linter, object_name_linter
+# 
+# # Solo mostrar resultados en consola
+# diferencias <- funcion_comparar_gids_historicos(ruta_RDS_datos)
+# 
+# # Mostrar resultados y exportar a Excel
+# diferencias <- funcion_comparar_gids_historicos(
+#   ruta_RDS_datos,
+#   ruta_excel = "diferencias_gids.xlsx"
+# )

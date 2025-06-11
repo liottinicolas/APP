@@ -347,12 +347,26 @@ busquedaGidServer <- function(input, output, session) {
       
       # Determinar estado de levante según lógica correcta para el estilo
       data$Levantado_real <- ifelse(!is.na(data$Porcentaje_llenado), "SI", "NO")
+      
+      # Obtener el estado del contenedor usando la función existente
+      estado_contenedor <- funcion_obtener_estado_de_contenedores_porgid(
+        gid_buscado = input$txt_busqueda_gid,
+        inicio = input$fecha_busqueda_gid[1],
+        fin = input$fecha_busqueda_gid[2]
+      )
+      
+      # Unir el estado con los datos existentes
+      data <- data %>%
+        left_join(
+          estado_contenedor %>% select(Fecha, Estado),
+          by = "Fecha"
+        )
 
       data %>%
         select(Fecha,Circuito,Posicion,Direccion,Levantado_real,Turno,Fecha_hora_pasaje,Id_viaje,Incidencia,
-               Porcentaje_llenado,Condicion) %>%
+               Porcentaje_llenado,Condicion,Estado) %>%
         datatable(
-          colnames = c("Dia","Circuito", "Posicion", "Dirección","Levante", "Turno", "Hora", "ID_Viaje", "Incidencia", "% Llenado", "Condición"),
+          colnames = c("Dia","Circuito", "Posicion", "Dirección","Levante", "Turno", "Hora", "ID_Viaje", "Incidencia", "% Llenado", "Condición", "Estado"),
           filter = "top",
           options = list(lengthMenu = c(10, 25, 50, 100),
                          pageLength = 100,
@@ -368,7 +382,8 @@ busquedaGidServer <- function(input, output, session) {
                            list(width = '5%', targets = 7,className = 'dt-center'), # ID_Viaje
                            list(width = '20%', targets = 8,className = 'dt-center'), #Incidencia
                            list(width = '5%', targets = 9), # llenado
-                           list(width = '20%',targets = 10,className = 'dt-center') # Condicion
+                           list(width = '20%',targets = 10,className = 'dt-center'), # Condicion
+                           list(width = '10%',targets = 11,className = 'dt-center') # Estado
                          )
           ),
           rownames = FALSE,

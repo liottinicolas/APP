@@ -45,9 +45,22 @@ filtrar_datos_estado_diario <- function(datos, fecha, dias, estados) {
       datos_filtrados <- datos_filtrados %>% filter(is.na(Estado))
     } else if (estados == "Mantenimiento") {
       datos_filtrados <- datos_filtrados %>% filter(Estado == "Mantenimiento")
+      
+      # Obtener los días en mantenimiento
+      dias_mantenimiento <- funcion_cargar_dias_que_esta_en_mantenimiento(datos_filtrados)
+      
+      # Unir con el dataframe original solo la columna Diferencia
+      datos_filtrados <- datos_filtrados %>%
+        left_join(
+          dias_mantenimiento %>% select(gid, Diferencia),
+          by = "gid"
+        )
+    } else if (estados == "Sin instalar") {
+      datos_filtrados <- datos_filtrados %>% filter(Estado == "Sin instalar")
     }
   }
   
+  # Eliminamos el distinct para mantener todos los registros, incluyendo duplicados
   return(datos_filtrados)
 }
 
@@ -70,15 +83,38 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
       return(list(
         levantados = 0,
         mantenimiento = 0,
-        activos = 0
+        activos = 0,
+        sin_instalar = 0
       ))
     }
+
+    # Calcular estadísticas
+    contenedores_sin_atraso <- tryCatch({
+      datos_dia %>%
+        filter(Acumulacion == 1) %>%
+        filter(is.na(Estado)) %>%
+        left_join(
+          web_historico_completo_llenado_incidencias %>% 
+            select(gid, Fecha, Porcentaje_llenado),
+          by = c("gid", "Fecha")
+        ) %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores sin atraso:", e$message))
+      return(0)
+    })
     
     # Calcular estadísticas
     contenedores_levantados <- tryCatch({
       datos_dia %>%
         filter(Acumulacion == 1) %>%
         filter(is.na(Estado)) %>%
+        left_join(
+          web_historico_completo_llenado_incidencias %>% 
+            select(gid, Fecha, Porcentaje_llenado),
+          by = c("gid", "Fecha")
+        ) %>%
+        filter(!is.na(Porcentaje_llenado)) %>%
         nrow()
     }, error = function(e) {
       warning(paste("Error al calcular contenedores levantados:", e$message))
@@ -103,17 +139,30 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
       return(0)
     })
     
+    contenedores_sin_instalar <- tryCatch({
+      datos_dia %>%
+        filter(Estado == "Sin instalar") %>%
+        nrow()
+    }, error = function(e) {
+      warning(paste("Error al calcular contenedores sin instalar:", e$message))
+      return(0)
+    })
+    
     return(list(
       levantados = contenedores_levantados,
       mantenimiento = contenedores_mantenimiento,
-      activos = contenedores_activos
+      activos = contenedores_activos,
+      sin_instalar = contenedores_sin_instalar,
+      sin_atraso = contenedores_sin_atraso
     ))
   }, error = function(e) {
     warning(paste("Error general en cálculo de estadísticas:", e$message))
     return(list(
       levantados = 0,
       mantenimiento = 0,
-      activos = 0
+      activos = 0,
+      sin_instalar = 0,
+      sin_atraso = 0
     ))
   })
 }
@@ -131,7 +180,7 @@ estadoDiarioUI <- function(id) {
     # Dashboard de estadísticas
     fluidRow(
       column(
-        width = 4,
+        width = 3,
         div(
           class = "well",
           style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
@@ -141,7 +190,7 @@ estadoDiarioUI <- function(id) {
         )
       ),
       column(
-        width = 4,
+        width = 3,
         div(
           class = "well",
           style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
@@ -151,12 +200,22 @@ estadoDiarioUI <- function(id) {
         )
       ),
       column(
-        width = 4,
+        width = 3,
         div(
           class = "well",
           style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
           h4("Activos", style = "color: #17a2b8;"),
           textOutput(ns("contador_activos")),
+          style = "text-align: center; font-size: 24px; font-weight: bold;"
+        )
+      ),
+      column(
+        width = 3,
+        div(
+          class = "well",
+          style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px;",
+          h4("Sin Instalar", style = "color: #6c757d;"),
+          textOutput(ns("contador_sin_instalar")),
           style = "text-align: center; font-size: 24px; font-weight: bold;"
         )
       )
@@ -186,14 +245,37 @@ estadoDiarioUI <- function(id) {
         ),
         column(
           width = 3,
-          checkboxGroupInput(
+          radioButtons(
             ns("checkbox_activoinactivo"),
-            "Con/sin mantenimiento",
+            "Estado",
             c(
               "Activos" = "Activos",
-              "Inactivos" = "Mantenimiento"
+              "En Mantenimiento" = "Mantenimiento",
+              "Sin instalar" = "Sin instalar"
             ),
             selected = "Activos"
+          )
+        )
+      ),
+      fluidRow(
+        column(
+          width = 6,
+          selectInput(
+            ns("filtro_municipio"),
+            "Municipio:",
+            choices = NULL,
+            multiple = TRUE,
+            width = '100%'
+          )
+        ),
+        column(
+          width = 6,
+          selectInput(
+            ns("filtro_circuito"),
+            "Circuito:",
+            choices = NULL,
+            multiple = TRUE,
+            width = '100%'
           )
         )
       ),
@@ -206,6 +288,12 @@ estadoDiarioUI <- function(id) {
             "Descargar CSV",
             class = "btn btn-primary",
             style = "margin-top: 10px; width: 200px;"
+          ),
+          downloadButton(
+            ns("descargar_todo_csv"),
+            "Descargar Todo",
+            class = "btn btn-success",
+            style = "margin-top: 10px; margin-left: 10px; width: 200px;"
           )
         )
       )
@@ -261,7 +349,54 @@ estadoDiarioServer <- function(input, output, session) {
     estadisticas_diarias()$activos
   })
   
-  # Reactiva para el estado diario
+  output$contador_sin_instalar <- renderText({
+    estadisticas_diarias()$sin_instalar
+  })
+  
+  # Reactiva para obtener los municipios únicos
+  municipios_unicos <- reactive({
+    req(web_historico_estado_diario)
+    sort(unique(web_historico_estado_diario$Municipio))
+  })
+  
+  # Actualizar las opciones del select de municipios
+  observe({
+    updateSelectInput(
+      session,
+      "filtro_municipio",
+      choices = municipios_unicos(),
+      selected = NULL
+    )
+  })
+  
+  # Reactiva para obtener los circuitos según el municipio seleccionado
+  circuitos_filtrados <- reactive({
+    req(input$filtro_municipio)
+    req(web_historico_estado_diario)
+    
+    if (length(input$filtro_municipio) > 0) {
+      circuitos <- web_historico_estado_diario %>%
+        filter(Municipio %in% input$filtro_municipio) %>%
+        pull(Circuito_corto) %>%
+        unique() %>%
+        sort()
+    } else {
+      circuitos <- sort(unique(web_historico_estado_diario$Circuito_corto))
+    }
+    return(circuitos)
+  })
+  
+  # Actualizar las opciones del select de circuitos
+  observe({
+    updateSelectInput(
+      session,
+      "filtro_circuito",
+      choices = circuitos_filtrados(),
+      selected = NULL
+    )
+  })
+  
+  # Reactiva para el estado diario con los nuevos filtros
   estado_diario <- reactive({
     req(input$filtro_fecha)
     req(input$dias_min, input$dias_max)
@@ -280,10 +415,25 @@ estadoDiarioServer <- function(input, output, session) {
         input$checkbox_activoinactivo
       )
       
+      # Aplicar filtros de municipio y circuito
+      if (length(input$filtro_municipio) > 0) {
+        datos_filtrados <- datos_filtrados %>%
+          filter(Municipio %in% input$filtro_municipio)
+      }
+      
+      if (length(input$filtro_circuito) > 0) {
+        datos_filtrados <- datos_filtrados %>%
+          filter(Circuito_corto %in% input$filtro_circuito)
+      }
+      
       if (nrow(datos_filtrados) == 0) {
-        showNotification("No se encontraron datos para la fecha seleccionada.", type = "warning")
+        showNotification("No se encontraron datos para los filtros seleccionados.", type = "warning")
         return(web_historico_estado_diario[0, ])
       }
+      
+      # Ordenar los datos por Circuito_corto y Posicion
+      datos_filtrados <- datos_filtrados %>%
+        arrange(Circuito_corto, as.numeric(Posicion))
       
       return(datos_filtrados)
     }, error = function(e) {
@@ -339,8 +489,39 @@ estadoDiarioServer <- function(input, output, session) {
   
   # Tabla de puntos
   output$tabla_puntos <- renderDT({
-    df <- estado_diario() %>%
-      select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+    df <- estado_diario()
+    
+    # Seleccionar columnas según el estado seleccionado
+    if (input$checkbox_activoinactivo == "Mantenimiento") {
+      df <- df %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion, Diferencia)
+      
+      # Configuración de columnas para estado Mantenimiento
+      columnDefs <- list(
+        list(width = '10%', targets = 0, className = 'dt-center'),
+        list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
+        list(width = '20%', targets = 2, className = 'dt-center'),
+        list(width = '10%', targets = 3, className = 'dt-center'),
+        list(width = '35%', targets = 4),
+        list(width = '5%', targets = 5, className = 'dt-center'),
+        list(width = '5%', targets = 6, className = 'dt-center'),
+        list(width = '5%', targets = 7, className = 'dt-center')
+      )
+    } else {
+      df <- df %>%
+        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      
+      # Configuración de columnas para estado Activos y Sin instalar
+      columnDefs <- list(
+        list(width = '10%', targets = 0, className = 'dt-center'),
+        list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
+        list(width = '20%', targets = 2, className = 'dt-center'),
+        list(width = '10%', targets = 3, className = 'dt-center'),
+        list(width = '40%', targets = 4),
+        list(width = '5%', targets = 5, className = 'dt-center'),
+        list(width = '5%', targets = 6, className = 'dt-center')
+      )
+    }
     
     datatable(df,
               filter = "top",
@@ -348,15 +529,7 @@ estadoDiarioServer <- function(input, output, session) {
               rownames = FALSE,
               options = list(
                 pageLength = 100,
-                columnDefs = list(
-                  list(width = '10%', targets = 0, className = 'dt-center'),
-                  list(width = '10%', targets = 1, className = 'dt-center', filter = 'text'),
-                  list(width = '20%', targets = 2, className = 'dt-center'),
-                  list(width = '10%', targets = 3, className = 'dt-center'),
-                  list(width = '40%', targets = 4),
-                  list(width = '5%', targets = 5, className = 'dt-center'),
-                  list(width = '5%', targets = 6, className = 'dt-center')
-                )
+                columnDefs = columnDefs
               ))
   })
   
@@ -366,16 +539,68 @@ estadoDiarioServer <- function(input, output, session) {
       paste("estado_diario_", format(input$filtro_fecha, "%Y-%m-%d"), ".csv", sep = "")
     },
     content = function(file) {
-      df <- estado_diario() %>%
-        select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      df <- estado_diario()
+      
+      # Seleccionar columnas según el estado seleccionado
+      if (input$checkbox_activoinactivo == "Mantenimiento") {
+        df <- df %>%
+          select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion, Diferencia)
+      } else {
+        df <- df %>%
+          select(gid, Municipio, Circuito_corto, Posicion, Direccion, Estado, Acumulacion)
+      }
+      
       write.csv(df, file, row.names = FALSE)
+    }
+  )
+  
+  # Descargar todos los datos como CSV
+  output$descargar_todo_csv <- downloadHandler(
+    filename = function() {
+      paste("estado_diario_completo_", format(input$filtro_fecha, "%Y-%m-%d"), ".csv", sep = "")
+    },
+    content = function(file) {
+      # Obtener datos para todos los estados
+      datos_activos <- filtrar_datos_estado_diario(
+        web_historico_estado_diario,
+        input$filtro_fecha,
+        c(1, max_acumulacion()),
+        "Activos"
+      )
+      
+      datos_mantenimiento <- filtrar_datos_estado_diario(
+        web_historico_estado_diario,
+        input$filtro_fecha,
+        c(1, max_acumulacion()),
+        "Mantenimiento"
+      )
+      
+      datos_sin_instalar <- filtrar_datos_estado_diario(
+        web_historico_estado_diario,
+        input$filtro_fecha,
+        c(1, max_acumulacion()),
+        "Sin instalar"
+      )
+      
+      # Combinar todos los datos
+      df_completo <- bind_rows(
+        datos_activos,
+        datos_mantenimiento,
+        datos_sin_instalar,
+      )
+      
+      # Seleccionar las columnas necesarias
+      df_completo <- df_completo %>%
+        select(gid, Circuito, Municipio, Circuito_corto, Posicion, Direccion,Observaciones, Estado, Acumulacion) %>%
+        arrange(Circuito, Posicion)
+      
+      write.csv(df_completo, file, row.names = FALSE, na = "")
     }
   )
   
   # Mapa
   output$map <- renderLeaflet({
-    datos <- estado_diario() %>%
-      filter(!is.na(the_geom))
+    datos <- estado_diario()
     
     if (nrow(datos) == 0) {
       return(
@@ -386,23 +611,53 @@ estadoDiarioServer <- function(input, output, session) {
       )
     }
     
-    datos <- modificar_coordenadas_paramapa(datos) %>%
+    # Separar datos con y sin geometría
+    datos_con_geom <- datos %>% filter(!is.na(the_geom))
+    datos_sin_geom <- datos %>% filter(is.na(the_geom))
+    
+    # Procesar datos con geometría para el mapa
+    datos_mapa <- modificar_coordenadas_paramapa(datos_con_geom) %>%
       mutate(color = map_chr(Acumulacion, determinar_color_acumulacion))
     
-    leaflet(datos) %>%
+    # Crear mapa base
+    mapa <- leaflet() %>%
       addTiles() %>%
-      addSearchOSM(options = searchOptions(collapsed = FALSE)) %>%
-      addCircleMarkers(
-        ~lon, ~lat,
-        color = ~color,
-        radius = 5,
-        fillOpacity = 0.8,
-        popup = ~paste(
-          "Direccion: ", Direccion, "<br>",
-          "GID: ", gid, "<br>",
-          "Acumulacion:", Acumulacion
+      addSearchOSM(options = searchOptions(collapsed = FALSE))
+    
+    # Agregar marcadores solo para datos con geometría
+    if (nrow(datos_mapa) > 0) {
+      mapa <- mapa %>%
+        addCircleMarkers(
+          data = datos_mapa,
+          ~lon, ~lat,
+          color = ~color,
+          radius = 5,
+          fillOpacity = 0.8,
+          popup = ~paste(
+            "Direccion: ", Direccion, "<br>",
+            "GID: ", gid, "<br>",
+            "Acumulacion:", Acumulacion, "<br>",
+            "Circuito:", Circuito_corto, "<br>",
+            "Posicion:", Posicion
+          )
         )
-      ) %>%
+    }
+    
+    # Agregar mensaje si hay datos sin geometría
+    if (nrow(datos_sin_geom) > 0) {
+      mapa <- mapa %>%
+        addControl(
+          html = paste0(
+            "<div style='background-color: white; padding: 10px; border-radius: 5px;'>",
+            "<strong>Nota:</strong> Hay ", nrow(datos_sin_geom), 
+            " registros sin coordenadas que se muestran en la tabla.",
+            "</div>"
+          ),
+          position = "topright"
+        )
+    }
+    
+    mapa %>%
       onRender("
         function(el, x) {
           var map = this;

@@ -142,31 +142,39 @@ funcion_contenedores_levantados_del_dia_inactivos <- function(dia_informe){
   return(levantados)
 }
 
-eliminar_gids_inactivos <- function(ubicaciones,ubicacion_deldia){
+eliminar_gids_inactivos <- function(ubicaciones, ubicacion_deldia){
+  # 1. Identifica ubicaciones repetidas (misma ubicación, diferentes GIDs)
   ubicaciones_repetidas <- ubicaciones %>%
     group_by(Circuito, Posicion, Fecha) %>%
-    filter(n() > 1) %>%
+    filter(n() > 1) %>%  # Encuentra grupos con más de un registro
     ungroup() %>%
     select(gid, Circuito, Posicion, Fecha)
   
-  # Eliminar duplicados considerando solo las columnas gid, Circuito y Posicion
+  # 2. Elimina duplicados considerando solo las columnas clave
   ubicaciones_repetidas_sin_duplicados <- ubicaciones_repetidas %>% 
     distinct(gid, Circuito, Posicion, .keep_all = TRUE) %>% 
     select(-Fecha)
   
-  # Unir los dataframes por gid y agregar la columna Acumulacion
-  ubicaciones_actualizado <- ubicaciones_repetidas_sin_duplicados %>%
-    left_join(ubicacion_deldia %>% select(gid, Acumulacion), by = "gid")
-  ubicaciones_actualizado <- ubicaciones_actualizado %>% 
-    filter(!is.na(Acumulacion))
+  # 3. Obtener la fecha más reciente de llenado para cada GID
+  fecha_consulta <- max(ubicacion_deldia$Fecha)
+  ultimos_llenados <- historico_llenado %>%
+    filter(Fecha <= fecha_consulta) %>%
+    group_by(gid) %>%
+    slice_max(Fecha, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    select(gid, Fecha)
   
-  # Filtrar para quedarnos con la fila de menor Acumulacion en caso de duplicados
+  # 4. Unir con los datos de llenado más recientes
+  ubicaciones_actualizado <- ubicaciones_repetidas_sin_duplicados %>%
+    left_join(ultimos_llenados, by = "gid")
+  
+  # 5. Selecciona el GID con la fecha de llenado más reciente para cada ubicación
   ubicaciones_filtrado <- ubicaciones_actualizado %>%
     group_by(Circuito, Posicion) %>%
-    slice_min(Acumulacion, with_ties = FALSE) %>%
+    slice_max(Fecha, with_ties = FALSE) %>%  # Se queda con el de fecha más reciente
     ungroup()
   
-  # Eliminar filas en ubicaciones_repetidas si el gid existe en ubicaciones_filtrado
+  # 6. Retorna los GIDs que deben ser eliminados
   ubicaciones_repetidas_filtrado <- ubicaciones_repetidas_sin_duplicados %>%
     anti_join(ubicaciones_filtrado, by = "gid")
   
@@ -738,7 +746,7 @@ imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
               fileEncoding = "ISO-8859-1")
 }
 
-
+# gid_buscado <- 124824
 #' Exporta datos de un GID específico a Excel
 #'
 #' @param gid_buscado El identificador único a buscar
@@ -752,13 +760,26 @@ funcion_imprimir_datosporgid <- function(gid_buscado) {
       select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
              -Circuito, -DB, -Numero_caja)
     
+    
+    ubi_porgid <- historico_ubicaciones %>% 
+      filter(gid == gid_buscado) %>% 
+      select(Fecha,gid,Estado) %>% 
+      arrange(desc(Fecha))
+    
+    imprimir_completo <- imprimir %>%
+      left_join(
+        ubi_porgid %>% select(gid, Fecha, Estado),
+        by = c("gid", "Fecha")
+      )
+    
+    
     wb <- createWorkbook()
     
     # Añadir una hoja
     addWorksheet(wb, "Datos")
     
     # Escribir el data frame como tabla con formato
-    writeDataTable(wb, sheet = "Datos", x = imprimir, 
+    writeDataTable(wb, sheet = "Datos", x = imprimir_completo, 
                   tableStyle = "TableStyleLight9")
     
     # Ajustar automáticamente el ancho de todas las columnas
@@ -802,6 +823,100 @@ funcion_obtener_datosporgid <- function(gid_buscado) {
     manejar_error(e, paste("obtener datos para GID", gid_buscado))
     return(NULL)
   })
+}
+
+#' Función para mostrar diferencias de manera concisa
+#' @param df1 DataFrame con datos del día actual
+#' @param df2 DataFrame con datos del día anterior
+#' @param tipo_cambio Tipo de cambio a detectar ("estado", "ubicacion", "todos")
+#' @return DataFrame con solo las diferencias relevantes
+mostrar_diferencias_concisa <- function(df1, df2, tipo_cambio = "todos") {
+  cat("\n=== ANÁLISIS DE DIFERENCIAS ===\n")
+  cat("Tipo de cambio analizado:", tipo_cambio, "\n")
+  cat("Total registros día actual:", nrow(df1), "\n")
+  cat("Total registros día anterior:", nrow(df2), "\n\n")
+  
+  # Definir columnas según el tipo de cambio
+  columnas_por_tipo <- list(
+    "estado" = c("gid", "Estado"),
+    "ubicacion" = c("gid", "Circuito", "Posicion", "Direccion"),
+    "todos" = c("gid", "Estado", "Circuito", "Posicion", "Direccion")
+  )
+  
+  # Seleccionar columnas según el tipo de cambio
+  columnas_para_comparar <- columnas_por_tipo[[tipo_cambio]]
+  
+  cat("Columnas analizadas:", paste(columnas_para_comparar, collapse = ", "), "\n\n")
+  
+  # Obtener diferencias usando anti_join
+  diferencias <- df1 %>%
+    anti_join(df2, by = columnas_para_comparar)
+  
+  # Si no hay diferencias, retornar mensaje
+  if (nrow(diferencias) == 0) {
+    cat("No se encontraron diferencias\n")
+    return(data.frame(mensaje = "No hay diferencias"))
+  }
+  
+  cat("Total de diferencias encontradas:", nrow(diferencias), "\n\n")
+  
+  # Seleccionar solo las columnas relevantes y agregar información de cambio
+  diferencias_concisa <- diferencias %>%
+    select(all_of(columnas_para_comparar)) %>%
+    distinct() %>%
+    mutate(
+      tipo_cambio = case_when(
+        tipo_cambio == "estado" ~ "Cambio de estado",
+        tipo_cambio == "ubicacion" ~ "Cambio de ubicación",
+        TRUE ~ "Cambio general"
+      )
+    )
+  
+  # Agregar información del estado anterior si es relevante
+  if (tipo_cambio %in% c("estado", "todos")) {
+    diferencias_concisa <- diferencias_concisa %>%
+      left_join(
+        df2 %>% select(gid, Estado) %>% rename(Estado_anterior = Estado),
+        by = "gid"
+      )
+  }
+  
+  # Mostrar resumen de cambios
+  cat("=== RESUMEN DE CAMBIOS ===\n")
+  if (tipo_cambio %in% c("estado", "todos")) {
+    cat("\nCambios de estado:\n")
+    print(diferencias_concisa %>% 
+            select(gid, Estado, Estado_anterior) %>% 
+            distinct() %>%
+            arrange(gid))
+            
+    # Mostrar conteo por tipo de estado
+    cat("\nConteo por estado actual:\n")
+    print(diferencias_concisa %>%
+            count(Estado) %>%
+            arrange(desc(n)))
+            
+    # Mostrar conteo por tipo de cambio de estado
+    cat("\nConteo por tipo de cambio de estado:\n")
+    print(diferencias_concisa %>%
+            filter(!is.na(Estado_anterior)) %>%
+            mutate(tipo_cambio_estado = paste(Estado_anterior, "->", Estado)) %>%
+            count(tipo_cambio_estado) %>%
+            arrange(desc(n)))
+  }
+  
+  if (tipo_cambio %in% c("ubicacion", "todos")) {
+    cat("\nCambios de ubicación:\n")
+    print(diferencias_concisa %>% 
+            select(gid, Circuito, Posicion, Direccion) %>% 
+            distinct() %>%
+            arrange(gid))
+  }
+  
+  cat("\n=== DETALLE COMPLETO DE CAMBIOS ===\n")
+  print(diferencias_concisa %>% arrange(gid))
+  
+  return(diferencias_concisa)
 }
 
 # nolint end

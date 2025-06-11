@@ -1,6 +1,12 @@
 # nolint start: line_length_linter, object_name_linter
 #
 
+# Cargar paquetes necesarios
+library(dplyr)
+
+# Definir la ruta del proyecto
+ruta_proyecto <- getwd()
+
 # Función auxiliar para establecer rutas y cargar datos
 cargar_datos <- function(
   modulo,
@@ -85,12 +91,6 @@ historico_ubicaciones <- actualizar_planillas_RDS(
   rutas_ubicaciones$ruta_RDS_datos
 )
 
-# prueba <- read_rds(rutas_ubicaciones$ruta_RDS_datos)
-# prueba <- historico_ubicaciones_cambio_de_estado
-# prueba <- prueba %>% 
-#   filter(Fecha < "2025-05-05")
-# 
-# saveRDS(prueba, rutas_ubicaciones$ruta_RDS_datos)
 
 # Actualizo las modificaciones de ubicaciones
 ruta_RDS_modificaciones_historicas <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_modificaciones.rds")
@@ -110,6 +110,9 @@ historico_viajes <- actualizar_planillas_RDS(
   rutas_viajes$ruta_carpeta_archivos,
   rutas_viajes$ruta_RDS_datos
 )
+
+
+
 
 ## 4. Actualización de estado diario
 ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
@@ -148,5 +151,27 @@ historico_completo_llenado_incidencias <- actualizar_planillas_RDS_llenado_compl
 ruta_RDS_ubicaciones_conthegeom <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds")
 ubicaciones_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
 saveRDS(ubicaciones_existentes, ruta_RDS_ubicaciones_conthegeom)
+
+## DFR ###
+##### obtengo del dfr, las posiciones
+ruta_funciones_posicionesdiarias_dfr <- file.path(ruta_proyecto, "scripts/db/DFR_ubicaciones/funciones_posiciones_dfr.R")
+source(ruta_funciones_posicionesdiarias_dfr)
+ruta_RSD_posicionesdiarias_dfr <- file.path(ruta_proyecto, "scripts/db/DFR_ubicaciones/historico_DFR_posiciones.rds")
+
+
+historico_DFR_ubicaciones <- guarda_posiciones_diarias(
+  consulta       = "dfr:E_DF_POSICIONES_RECORRIDO",     # tu objeto de consulta
+  nombre_archivo = "historico_DFR_posiciones",     # creará/actualizará historic_posiciones.rds
+  ruta_historico = ruta_RSD_posicionesdiarias_dfr
+)
+
+ruta_RSD_posicionesdiarias_dfr_DEBAJA <- file.path(ruta_proyecto, "scripts/db/DFR_ubicaciones/historico_DFR_posiciones_DEBAJA.rds")
+
+# 1) Primera llamada → descarga todo, guarda el RDS y devuelve el DF completo con Fecha_agregado
+historico_DFR_ubicaciones_DEBAJA <- actualizar_posiciones_historico(
+  consulta       = "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO",
+  nombre_archivo = "historico_DFR_posiciones_DEBAJA",
+  ruta_historico = ruta_RSD_posicionesdiarias_dfr_DEBAJA
+)
 
 # nolint end
