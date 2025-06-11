@@ -60,4 +60,4 @@ cat("Script carga_BD.R ejecutado correctamente en modo:", CONFIGURACION$MODO, "\
 
 # nolint end
 
-# funcion_imprimir_datosporgid(162392)
+# funcion_imprimir_datosporgid(124824)

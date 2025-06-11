@@ -6,7 +6,7 @@ paquetes_necesarios <- c(
   "dplyr", "tidyr", "purrr", "readr", "stringr", "stringi", "lubridate",
   "ggplot2", "plotly", "leaflet", "leaflet.extras", "sf",
   "knitr", "rmarkdown", "openxlsx", "writexl", "readxl",
-  "rsconnect", "here", "R6", "tools", "magrittr"
+  "rsconnect", "here", "R6", "tools", "magrittr","httr"
 )
 
 # 2. Verificar localmente que todos estén instalados

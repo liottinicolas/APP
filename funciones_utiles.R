@@ -746,7 +746,7 @@ imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
               fileEncoding = "ISO-8859-1")
 }
 
-
+# gid_buscado <- 124824
 #' Exporta datos de un GID específico a Excel
 #'
 #' @param gid_buscado El identificador único a buscar
@@ -760,13 +760,26 @@ funcion_imprimir_datosporgid <- function(gid_buscado) {
       select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
              -Circuito, -DB, -Numero_caja)
     
+    
+    ubi_porgid <- historico_ubicaciones %>% 
+      filter(gid == gid_buscado) %>% 
+      select(Fecha,gid,Estado) %>% 
+      arrange(desc(Fecha))
+    
+    imprimir_completo <- imprimir %>%
+      left_join(
+        ubi_porgid %>% select(gid, Fecha, Estado),
+        by = c("gid", "Fecha")
+      )
+    
+    
     wb <- createWorkbook()
     
     # Añadir una hoja
     addWorksheet(wb, "Datos")
     
     # Escribir el data frame como tabla con formato
-    writeDataTable(wb, sheet = "Datos", x = imprimir, 
+    writeDataTable(wb, sheet = "Datos", x = imprimir_completo, 
                   tableStyle = "TableStyleLight9")
     
     # Ajustar automáticamente el ancho de todas las columnas

@@ -27,6 +27,8 @@ paquetes <- c(
   "magrittr"
 )
 
+
+
 # Función para instalar/actualizar paquetes
 instalar_actualizar_paquetes <- function(paquetes) {
   # Primero forzar la reinstalación de htmltools
