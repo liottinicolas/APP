@@ -751,18 +751,29 @@ imprimir_csv_pordia_ubicaciones <- function(fecha_buscada){
 #'
 #' @param gid_buscado El identificador único a buscar
 #' @return No devuelve valor, genera archivo Excel
-funcion_imprimir_datosporgid <- function(gid_buscado) {
+funcion_imprimir_datosporgid <- function(gid_buscado, fecha_inicio = NULL, fecha_final = NULL) {
   tryCatch({
     escribir_log("INFO", paste("Exportando datos para GID:", gid_buscado))
     
     imprimir <- historico_completo_llenado_incidencias %>% 
-      filter(gid == gid_buscado) %>% 
+      filter(gid == gid_buscado) %>%
+      {
+        if (!is.null(fecha_inicio)) filter(., Fecha >= fecha_inicio) else .
+      } %>%
+      {
+        if (!is.null(fecha_final)) filter(., Fecha <= fecha_final) else .
+      } %>%
       select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
              -Circuito, -DB, -Numero_caja)
     
-    
     ubi_porgid <- historico_ubicaciones %>% 
-      filter(gid == gid_buscado) %>% 
+      filter(gid == gid_buscado) %>%
+      {
+        if (!is.null(fecha_inicio)) filter(., Fecha >= fecha_inicio) else .
+      } %>%
+      {
+        if (!is.null(fecha_final)) filter(., Fecha <= fecha_final) else .
+      } %>%
       select(Fecha,gid,Estado) %>% 
       arrange(desc(Fecha))
     
@@ -771,7 +782,6 @@ funcion_imprimir_datosporgid <- function(gid_buscado) {
         ubi_porgid %>% select(gid, Fecha, Estado),
         by = c("gid", "Fecha")
       )
-    
     
     wb <- createWorkbook()
     

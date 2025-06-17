@@ -20,7 +20,10 @@ busquedaGidUI <- function(id) {
             min = as.Date(CONFIGURACION$FECHA_INICIO_HISTORICO_LLENADO),
             max = ultima_fecha_registro
           ),
-          actionButton(inputId = ns("btn_buscar_porgid"), label = "Buscar")
+          actionButton(inputId = ns("btn_buscar_porgid"), label = "Buscar"),
+          br(), br(),
+          checkboxInput(ns("chk_historico_completo"), "Descargar histórico completo", FALSE),
+          downloadButton(ns("btn_descargar_gid"), label = "Descargar datos")
         ),
       ),
       column(
@@ -68,6 +71,82 @@ busquedaGidServer <- function(input, output, session) {
       ) %>%
       arrange(desc(Fecha),desc(Turno))
   })
+  
+  # Agregar la funcionalidad de descarga
+  output$btn_descargar_gid <- downloadHandler(
+    filename = function() {
+      if (input$chk_historico_completo) {
+        paste0(input$txt_busqueda_gid, "_historico.xlsx")
+      } else {
+        paste0(
+          input$txt_busqueda_gid,
+          "_desde_",
+          format(input$fecha_busqueda_gid[1], "%Y-%m-%d"),
+          "_hasta_",
+          format(input$fecha_busqueda_gid[2], "%Y-%m-%d"),
+          ".xlsx"
+        )
+      }
+    },
+    content = function(file) {
+      req(input$txt_busqueda_gid)
+      
+      # Crear el libro de trabajo
+      wb <- createWorkbook()
+      
+      # Añadir una hoja
+      addWorksheet(wb, "Datos")
+      
+      # Obtener los datos
+      imprimir <- web_historico_completo_llenado_incidencias %>% 
+        filter(gid == input$txt_busqueda_gid) %>%
+        {
+          if (!input$chk_historico_completo) {
+            filter(., Fecha >= input$fecha_busqueda_gid[1], Fecha <= input$fecha_busqueda_gid[2])
+          } else {
+            .
+          }
+        } %>%
+        select(-Id_Motivo_no_levante, -Accion_requerida, -Responsable, 
+               -Circuito, -DB, -Numero_caja)
+      
+      ubi_porgid <- web_historico_ubicaciones %>% 
+        filter(gid == input$txt_busqueda_gid) %>%
+        {
+          if (!input$chk_historico_completo) {
+            filter(., Fecha >= input$fecha_busqueda_gid[1], Fecha <= input$fecha_busqueda_gid[2])
+          } else {
+            .
+          }
+        } %>%
+        select(Fecha, gid, Estado) %>% 
+        arrange(desc(Fecha))
+      
+      imprimir_completo <- imprimir %>%
+        left_join(
+          ubi_porgid %>% select(gid, Fecha, Estado),
+          by = c("gid", "Fecha")
+        )
+      
+      # Escribir los datos
+      writeDataTable(wb, sheet = "Datos", x = imprimir_completo, 
+                    tableStyle = "TableStyleLight9")
+      
+      # Ajustar el ancho de las columnas
+      setColWidths(wb, sheet = "Datos", cols = 1:ncol(imprimir_completo), 
+                   widths = "auto")
+      
+      # Crear y aplicar estilo para fechas
+      dateStyle <- createStyle(numFmt = "dd/mm/yyyy")
+      addStyle(wb, sheet = "Datos", style = dateStyle, 
+               cols = which(sapply(imprimir_completo, inherits, "Date")), 
+               rows = 2:(nrow(imprimir_completo) + 1), 
+               gridExpand = TRUE)
+      
+      # Guardar el archivo
+      saveWorkbook(wb, file, overwrite = TRUE)
+    }
+  )
   
   # Dashboard panel que se renderiza después de la búsqueda
   output$dashboard_panel <- renderUI({
