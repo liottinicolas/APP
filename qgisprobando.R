@@ -551,10 +551,51 @@ drawZonaLeaflet <- function(zona_df, fila = 1, tile_provider = "OpenStreetMap") 
     )
 }
 
-mapa <- drawZonaLeaflet(zona, fila = 21, tile_provider = "cartodb")
+drawZonasLeaflet_global <- function(zona_df, tile_provider = "OpenStreetMap") {
+  # 1. Reproyectar todo a lon/lat
+  zonas_ll <- sf::st_transform(zona_df, 4326)
+  
+  # 2. Iniciar el mapa con el proveedor de tiles
+  mapa <- switch(
+    tolower(tile_provider),
+    cartodb = leaflet::leaflet(zonas_ll) %>% leaflet::addProviderTiles("CartoDB.Positron"),
+    stamen  = leaflet::leaflet(zonas_ll) %>% leaflet::addProviderTiles("Stamen.TonerLite"),
+    leaflet::leaflet(zonas_ll) %>% leaflet::addTiles()
+  )
+  
+  # 3. Añadir polígonos y una sola leyenda
+  mapa %>%
+    leaflet::addPolygons(
+      color       = "darkgreen",
+      weight      = 2,
+      fillOpacity = 0.3,
+      popup       = ~paste0("<strong>ID:</strong> ", id)
+    ) %>%
+    leaflet::addLegend(
+      position = "bottomright",
+      colors   = "darkgreen",
+      labels   = "Zonas",
+      title    = "Polígonos"
+    )
+}
+
+mapa <- drawZonasLeaflet_global(zona, tile_provider = "cartodb")
 
 # Y para visualizarlo en RStudio:
 mapa
+
+
+zona_filtrada <- zona %>%
+  select(GID,COD_RECORRIDO,MUNICIPIO,geometry)
+
+# Con esto GDAL convertirá la geometría a WKT automáticamente
+st_write(
+  obj           = zona_filtrada,
+  dsn           = "salida_gdal.csv",
+  driver        = "CSV",
+  layer_options = "GEOMETRY=AS_WKT"
+)
+
 
 
 
@@ -1124,12 +1165,12 @@ mapa_municipios  # lo despliega en RStudio o tu navegador
 
 
 -------------
-#   
+# 
 #   📍 Título: Zonas de recolección por turno (geométricas)
 # 📝 Descripción: No se especifica, pero por el nombre, representa zonas geográficas de recolección diferenciadas por turno (matutino, vespertino, nocturno, etc.)
 # 🌍 CRS: EPSG:32721
 # 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
-#   
+# 
 #   # URL del servidor GeoServer
 #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
 # 
@@ -1140,8 +1181,8 @@ mapa_municipios  # lo despliega en RStudio o tu navegador
 #   request = "GetFeature",
 #   typeName = "imm:V_DF_ZONAS_REC_TURNO_GEOM",
 #   srsname = "EPSG:32721",
-#   outputFormat = "application/json",
-#   maxFeatures = 100  # opcional
+#   outputFormat = "application/json"
+#   #maxFeatures = 100  # opcional
 # )
 # 
 # # Hacer la consulta GET
@@ -1153,7 +1194,13 @@ mapa_municipios  # lo despliega en RStudio o tu navegador
 # # Leer con sf
 # zonas_turno <- st_read("zonas_rec_turno.json", quiet = TRUE)
 # 
-
+# 
+# 
+# # Carga la librería
+# library(writexl)
+# 
+# # Supongamos que tu df se llama df
+# write_xlsx(zonas_turno, path = "mi_tabla.xlsx")
 
 ------------
 #   

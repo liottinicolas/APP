@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE WMT_MS_Capabilities SYSTEM "https://geoserver-ed.imm.gub.uy/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd">
-<WMT_MS_Capabilities version="1.1.1" updateSequence="3607">
+<WMT_MS_Capabilities version="1.1.1" updateSequence="3611">
   <Service>
     <Name>OGC:WMS</Name>
     <Title>GeoServer Web Map Service</Title>
@@ -7084,6 +7084,27 @@
           <LegendURL width="20" height="20">
             <Format>image/png</Format>
             <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://geoserver-ed.imm.gub.uy/geoserver/imm/wms?request=GetLegendGraphic&amp;version=1.1.1&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=spaa_zona_recorrido_print"/>
+          </LegendURL>
+        </Style>
+      </Layer>
+      <Layer queryable="1" opaque="0">
+        <Name>uptu_ubic_parada_fusionada</Name>
+        <Title>uptu_ubic_parada_fusionada</Title>
+        <Abstract/>
+        <KeywordList>
+          <Keyword>features</Keyword>
+          <Keyword>uptu_ubic_parada_fusionada</Keyword>
+        </KeywordList>
+        <SRS>EPSG:32721</SRS>
+        <LatLonBoundingBox minx="-56.65029135438701" miny="-34.93362994249812" maxx="-55.52283015357189" maxy="-34.354578684802895"/>
+        <BoundingBox SRS="EPSG:32721" minx="532156.9375" miny="6134260.5" maxx="634922.0" maxy="6197553.0"/>
+        <Style>
+          <Title>Generic</Title>
+          <Abstract>Generic style</Abstract>
+          <Name>generic</Name>
+          <LegendURL width="20" height="20">
+            <Format>image/png</Format>
+            <OnlineResource xmlns:xlink="http://www.w3.org/1999/xlink" xlink:type="simple" xlink:href="https://geoserver-ed.imm.gub.uy/geoserver/imm/wms?request=GetLegendGraphic&amp;version=1.1.1&amp;format=image%2Fpng&amp;width=20&amp;height=20&amp;layer=uptu_ubic_parada_fusionada"/>
           </LegendURL>
         </Style>
       </Layer>
