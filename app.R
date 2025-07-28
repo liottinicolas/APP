@@ -18,6 +18,8 @@ source("modules/incidencias_pluma.R")
 source("modules/incidencias_mantenimiento.R")
 source("modules/incidencias_operativa.R")
 source("modules/condicion_contenedor.R")
+source("modules/reportes_incidencias.R")
+source("modules/incidencias_diarias.R")
 
 # ---- UI ----  
 ui <- dashboardPage(
@@ -35,7 +37,9 @@ ui <- dashboardPage(
                menuSubItem("Grua", tabName = "incidencias_grua", icon = icon("piggy-bank")),
                menuSubItem("Pluma", tabName = "incidencias_pluma", icon = icon("leaf")),
                menuSubItem("Mantenimiento", tabName = "incidencias_mantenimiento", icon = icon("wrench")),
-               menuSubItem("Operativa", tabName = "incidencias_operativa", icon = icon("road"))
+               menuSubItem("Operativa", tabName = "incidencias_operativa", icon = icon("road")),
+               menuSubItem("Reportes", tabName = "reportes_incidencias", icon = icon("file-alt")),
+               menuSubItem("Incidencias diarias", tabName = "incidencias_diarias", icon = icon("calendar"))
                ),
       menuItem("Condicion contenedor", tabName = "condicion_contenedor", icon = icon("signal"))
     )
@@ -50,7 +54,9 @@ ui <- dashboardPage(
        tabItem(tabName = "incidencias_pluma", incidenciasPlumaUI("incidenciasPLUMA")),
        tabItem(tabName = "incidencias_mantenimiento", incidenciasMantenimientoUI("incidenciasMantenimiento")),
        tabItem(tabName = "incidencias_operativa", incidenciasOperativaUI("incidenciasOperativa")),
-       tabItem(tabName = "condicion_contenedor", condicionContenedorUI("condicionContenedor"))
+       tabItem(tabName = "condicion_contenedor", condicionContenedorUI("condicionContenedor")),
+       tabItem(tabName = "reportes_incidencias", reportesIncidenciasUI("reportesIncidencias")),
+       tabItem(tabName = "incidencias_diarias", incidenciasGeneralUI("incidenciasGeneral"))
      )
     
     
@@ -67,6 +73,8 @@ server <- function(input, output, session) {
   callModule(incidenciasMantenimientoServer, "incidenciasMantenimiento")
   callModule(incidenciasOperativaServer, "incidenciasOperativa")
   callModule(condicionContenedorServer, "condicionContenedor")
+  callModule(reportesIncidenciasServer, "reportesIncidencias")
+  callModule(incidenciasGeneralServer, "incidenciasGeneral")
 }
   
 shinyApp(ui, server)

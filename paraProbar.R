@@ -132,3 +132,7 @@ tryCatch({
 }, error = function(e) {
   manejar_error(e, paste("Error exportando el excel de los mal ubicados"))
 })
+
+
+
+
