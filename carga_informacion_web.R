@@ -4,28 +4,69 @@ library(magrittr)
 
   
   ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
-  web_historico_estado_diario <- read_rds(ruta_RDS_datos)
+  
+  # Verificar si el archivo existe antes de cargarlo
+  if (!file.exists(ruta_RDS_datos)) {
+    warning("Archivo no encontrado: ", ruta_RDS_datos)
+    web_historico_estado_diario <- data.frame()
+  } else {
+    web_historico_estado_diario <- read_rds(ruta_RDS_datos)
+  }
   
   ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/historico_llenado_completo.rds")
-  web_historico_completo_llenado_incidencias <- read_rds(ruta_RDS_llenado_completo)
+  
+  # Verificar si el archivo existe antes de cargarlo
+  if (!file.exists(ruta_RDS_llenado_completo)) {
+    warning("Archivo no encontrado: ", ruta_RDS_llenado_completo)
+    web_historico_completo_llenado_incidencias <- data.frame()
+  } else {
+    web_historico_completo_llenado_incidencias <- read_rds(ruta_RDS_llenado_completo)
+  }
   
   ruta_RDS_historico_ubicaciones <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_ubicaciones.rds")
-  web_historico_ubicaciones <- read_rds(ruta_RDS_historico_ubicaciones)
+  
+  # Verificar si el archivo existe antes de cargarlo
+  if (!file.exists(ruta_RDS_historico_ubicaciones)) {
+    warning("Archivo no encontrado: ", ruta_RDS_historico_ubicaciones)
+    web_historico_ubicaciones <- data.frame()
+  } else {
+    web_historico_ubicaciones <- read_rds(ruta_RDS_historico_ubicaciones)
+  }
   
   # Cálculo de fechas relevantes
-  ultima_fecha_registro <- max(web_historico_estado_diario$Fecha, na.rm = TRUE)
-  fecha_informe_diario <- ultima_fecha_registro + 1
-  escribir_log("INFO", paste("Última fecha de registro:", ultima_fecha_registro, 
-                             "- Fecha informe diario:", fecha_informe_diario))
+  if (nrow(web_historico_estado_diario) > 0) {
+    ultima_fecha_registro <- max(web_historico_estado_diario$Fecha, na.rm = TRUE)
+    fecha_informe_diario <- ultima_fecha_registro + 1
+    escribir_log("INFO", paste("Última fecha de registro:", ultima_fecha_registro, 
+                               "- Fecha informe diario:", fecha_informe_diario))
+  } else {
+    ultima_fecha_registro <- Sys.Date()
+    fecha_informe_diario <- ultima_fecha_registro + 1
+    warning("No se encontraron datos de estado diario, usando fecha actual")
+  }
 
   inicio <- as.Date(CONFIGURACION$FECHA_INICIO_ANALISIS)
   
   ruta_RDS_ubicaciones_conthegeom <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds")
-  ubicaciones_existentes <- readRDS(ruta_RDS_ubicaciones_conthegeom)
+  
+  # Verificar si el archivo existe antes de cargarlo
+  if (!file.exists(ruta_RDS_ubicaciones_conthegeom)) {
+    warning("Archivo no encontrado: ", ruta_RDS_ubicaciones_conthegeom)
+    ubicaciones_existentes <- data.frame()
+  } else {
+    ubicaciones_existentes <- readRDS(ruta_RDS_ubicaciones_conthegeom)
+  }
 
   # Carga de circuitos planificados
   ruta_RDS_circuitos_planificados <- file.path(ruta_proyecto, "scripts/para_mapear/circuitos_planificados.rds")
-  web_circuitos_planificados <- readRDS(ruta_RDS_circuitos_planificados)
+  
+  # Verificar si el archivo existe antes de cargarlo
+  if (!file.exists(ruta_RDS_circuitos_planificados)) {
+    warning("Archivo no encontrado: ", ruta_RDS_circuitos_planificados)
+    web_circuitos_planificados <- data.frame()
+  } else {
+    web_circuitos_planificados <- readRDS(ruta_RDS_circuitos_planificados)
+  }
 
 # nolint end
 

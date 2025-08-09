@@ -135,4 +135,81 @@ tryCatch({
 
 
 
+adrian <- historico_estado_diario %>%
+  filter(Municipio == "A") %>% 
+  filter(Fecha >= "2025-07-21") %>% 
+  filter(Fecha <= "2025-07-27") %>% 
+  select(Fecha,gid,Circuito_corto,Posicion,Estado,Direccion,Acumulacion)
 
+adrian[is.na(adrian)] <- ""
+
+write.csv(adrian, "municipio_a_julio.csv", row.names = FALSE, na = "")
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(dplyr)
+library(tidyr)
+library(writexl)
+
+# 📅 Fecha objetivo
+fecha_objetivo <- as.Date("2025-08-05")
+
+# 🧹 Filtrar histórico por la fecha
+df_filtrado <- web_historico_ubicaciones %>%
+  filter(as.Date(Fecha) == fecha_objetivo)
+
+# 🧮 Contar cuántos contenedores hay por circuito
+conteos <- df_filtrado %>%
+  count(Circuito_corto, name = "cantidad")
+
+# 🔢 Máximo de columnas necesarias
+max_contenedores <- max(conteos$cantidad, na.rm = TRUE)
+
+# 🧱 Armar vector con "" y ❌
+df_expandido <- conteos %>%
+  rowwise() %>%
+  mutate(vector = list(
+    c(rep("", cantidad), rep("❌", max_contenedores - cantidad))
+  )) %>%
+  ungroup()
+
+# 🧷 Expandir columnas Pos_1, Pos_2, ...
+df_expandido <- df_expandido %>%
+  mutate(vector = lapply(vector, function(x) setNames(as.list(x), paste0("Pos_", seq_along(x))))) %>%
+  unnest_wider(vector)
+
+# 💾 Exportar a Excel
+write_xlsx(df_expandido, path = "tabla_circuitos_emoji.xlsx")
+
+
+
+
+
+
+
+# CONTAR CONTENEDORES ROTOS ---- 
+
+asd1 <- historico_incidencias_completas %>% 
+  filter((Fecha> "2025-01-01") & (Fecha<"2025-06-30"))%>% 
+  filter(Id_incidencia == 18)
+
+rotos_llenado <- historico_llenado %>% 
+  filter((Fecha> "2025-01-01") & (Fecha<"2025-06-30")) %>% 
+  filter(str_detect(Condicion, "Requiere Mantenimiento")) %>%  
+  distinct(gid, .keep_all = TRUE)
+
+df_combinado <- inner_join(
+  asd1,
+  rotos_llenado,
+  by = c("Fecha", "Circuito", "Posicion", "Id_viaje")
+)
