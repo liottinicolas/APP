@@ -158,3 +158,100 @@ https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/ofici
 https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/visualizador/contenedores/estado
 https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/visualizador/contenedores/estad
 
+
+
+library(httr)
+library(jsonlite)
+
+# 1) Prepara el handle para guardar cookies
+h <- handle("https://is.montevideo.gub.uy")
+
+# 2) Copia los parámetros que ya ves en la URL de login.do
+#    (aquí tu sessionDataKey, relyingParty y tenantDomain tal como están)
+sessionDataKey <- "b27f9dd8-cafd-465e-a218-fd6a2c2b31bc"
+relyingParty   <- "ih.montevideo.gub.uy"
+tenantDomain   <- "carbon.super"
+
+# 3) Genera el timestamp en milisegundos
+ts_millis <- as.character(as.integer(as.numeric(Sys.time()) * 1000))
+
+# 4) Llama GET a /logincontext (no authenticationendpoint)
+ctx_res <- GET(
+  handle = h,
+  url    = "https://is.montevideo.gub.uy/logincontext",
+  query  = list(
+    sessionDataKey = sessionDataKey,
+    relyingParty   = relyingParty,
+    tenantDomain   = tenantDomain,
+    `_`            = ts_millis     # backticks para el nombre "_"
+  ),
+  add_headers(
+    Accept        = "application/json, text/plain, */*",
+    Origin        = "https://intranet.imm.gub.uy",
+    Referer       = "https://intranet.imm.gub.uy/"
+  )
+)
+stop_for_status(ctx_res)
+
+# 5) Parsear el JSON de respuesta
+ctx <- content(ctx_res, as = "parsed", simplifyVector = TRUE)
+print(ctx)
+
+
+
+
+
+# instala si no las tienes
+# install.packages(c("httr", "jsonlite"))
+
+library(httr)
+library(jsonlite)
+
+# 1. Define la URL base y los parámetros
+base_url   <- "https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/api/frontend/v1/semana"
+params     <- list(
+  oficinaId  = 1,
+  startFecha = "2025-06-30"
+)
+
+# 2. Si tu API usa autenticación básica:
+usuario    <- "im4445285"
+contrasena <- "Nico1919*"
+
+resp <- GET(
+  url    = base_url,
+  query  = params,
+  authenticate(usuario, contrasena),
+  accept_json()           # añade header Accept: application/json
+)
+
+# 3. (Opcional) Si en lugar de Basic Auth necesitas enviar la cookie de sesión
+# sess <- httr::set_cookies(PHPSESSID = "valor_de_mi_cookie")
+# resp <- GET(base_url, query = params, sess, accept_json())
+
+# 4. Comprueba que la petición fue exitosa
+stop_for_status(resp)
+
+# 5. Parsear el JSON a una lista de R
+txt  <- content(resp, as = "text", encoding = "UTF-8")
+data <- fromJSON(txt)
+
+# 6. Explora los datos
+str(data)
+# Por ejemplo, si data$planificaciones es un data.frame:
+if (!is.null(data$planificaciones)) {
+  plan_df <- as.data.frame(data$planificaciones)
+  print(plan_df)
+}
+
+
+
+
+
+# 
+# consulta <- "dfr:E_DF_ZONA_RECORRIDO"
+# nombre_archivo <- "posicioneasaaaass_diarasdfaaaaio"
+# 
+# asd <- funcion_obtener_df_DFR(consulta,nombre_archivo)
+
+

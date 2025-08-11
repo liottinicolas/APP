@@ -114,7 +114,7 @@ guarda_posiciones_diarias <- function(consulta,
   }
 }
 
-#---------------------------------------------------------------
+#------------------NO SE UTILIZA MÁS O ESTÁ IMPLEMENTADO -------------------------
 # Función: actualizar_posiciones_historico
 #
 # Parámetros:
@@ -142,6 +142,9 @@ guarda_posiciones_diarias <- function(consulta,
 #               a) No modifica el RDS.
 #               b) Devuelve el dataframe completo tal cual estaba (df_anterior).
 #---------------------------------------------------------------
+
+
+
 actualizar_posiciones_historico <- function(consulta, nombre_archivo) {
   # 1) Definir la ruta al archivo RDS local
   archivo_rds <- paste0(nombre_archivo, ".rds")
@@ -262,166 +265,9 @@ todos_los_datos <- actualizar_posiciones_historico(
 )
 
 
-# 
-# consulta <- "dfr:E_DF_POSICIONES_RECORRIDO"
-# nombre_archivo <- "posiciones_diario"
-# 
-# asd <- funcion_obtener_df_DFR(consulta,nombre_archivo)
-# 
-# asds <- asd %>%
-#   group_by(GID) %>%
-#   summarise(ns = n(), .groups = "drop")
-# 
-# asd <- asd %>%
-#   mutate(
-#     # 1) Arreglamos la parte del año: si empieza con "00" (ej. "0023-..."),
-#     #    reemplazamos "00" por "20" para que quede "2023-..."
-#     FECHA_DESDE = if_else(
-#       substr(as.character(FECHA_DESDE), 1, 2) == "00",
-#       sub("^00", "20", as.character(FECHA_DESDE)),
-#       as.character(FECHA_DESDE)
-#     ),
-#     FECHA_HASTA = if_else(
-#       substr(as.character(FECHA_HASTA), 1, 2) == "00",
-#       sub("^00", "20", as.character(FECHA_HASTA)),
-#       as.character(FECHA_HASTA)
-#     ),
-#     # 2) Ahora convertimos esas cadenas corregidas a Date
-#     FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
-#     FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
-#   ) %>%
-#   mutate(
-#     FCREA = ymd_hms(FCREA),
-#     FACT  = ymd_hms(FACT)
-#   )
-# 
-# asd_filtrado <- asd %>%
-#   # 1) Crear dos columnas auxiliares:
-#   #    - prefix: todo lo que va antes del primer “_”
-#   #    - numero: extraer los dígitos después del último “_” y convertirlos a numérico
-#   mutate(
-#     prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
-#     numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
-#   ) %>%
-#   # 2) Filtrar según las dos condiciones:
-#   #    a) prefix debe estar en el vector c("A","C","D","E","F","G","CH")
-#   #    b) numero >= 100
-#   filter(
-#     prefix %in% c("A","C","D","E","F","G","CH"),
-#     numero >= 100
-#   ) %>%
-#   # 3) (Opcional) Eliminar las columnas auxiliares si no las necesitas luego:
-#   select(-prefix, -numero)
-# 
-# hoy <- Sys.Date()
-# 
-# asd_filtrado_malfecha <- asd_filtrado %>%
-#   filter(FECHA_HASTA > hoy)
-# 
-# asd_corregido <- asd_filtrado_malfecha %>%
-#   mutate(
-#     # Reemplazamos FECHA_HASTA por la fecha extraída de FACT
-#     FECHA_HASTA = as.Date(FACT)
-#   )
-# 
-# 
-# 
-# consulta <- "dfr:E_DF_POSICIONES_RECORRIDO"
-# nombre_archivo <- "posiciones_diario"
-# 
-# 
-# fecha_hoy <- Sys.Date()-1
-# posiciones_dfr <- funcion_obtener_df_DFR(consulta,nombre_archivo)
-# posiciones_dfr <- posiciones_dfr %>%
-#   mutate(GID = as.character(GID)) %>%
-#   rename(Direccion_dfr = DIRECCION)
-# 
-# 
-# ubicaciones_deldia <- historico_ubicaciones %>%
-#   filter(Fecha == fecha_hoy) %>%
-#   mutate(
-#     Direccion_consulta = if_else(
-#       is.na(Numero),
-#       Calle,
-#       paste(Calle, Numero)
-#     )
-#   )
-# 
-# 
-# posiciones_completas_deldia <- posiciones_dfr %>%
-#   # 1) Unir el histórico para traer la columna Calle según coincidencia de GID ↔ gid
-#   left_join(
-#     ubicaciones_deldia %>% select(gid, Direccion_consulta),
-#     by = c("GID" = "gid")
-#   ) %>%
-#   # 2) Rellenar DIRECCION: si ya existía, mantenerla;
-#   #    si era NA y llega Calle, usar Calle;
-#   #    si sigue siendo NA, poner "NO HAY DIRECCION"
-#   mutate(
-#     Direccion_dfr = coalesce(Direccion_dfr, Direccion_consulta, "NO HAY DIRECCION")
-#   ) %>%
-#   mutate(Fecha = fecha_hoy)
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# guarda_posiciones <- function(consulta, nombre_archivo,
-#                               ruta_historico = paste0("historico_", nombre_archivo, ".rds")) {
-#   # 1) Fecha objetivo (ayer)
-#   fecha_hoy <- Sys.Date() - 1
-# 
-#   # 2) Obtener y preparar las posiciones
-#   posiciones_dfr <- funcion_obtener_df_DFR(consulta, nombre_archivo) %>%
-#     dplyr::mutate(GID = as.character(GID)) %>%
-#     dplyr::rename(Direccion_dfr = DIRECCION)
-# 
-#   # 3) Filtrar ubicaciones históricas del día
-#   ubicaciones_deldia <- historico_ubicaciones %>%
-#     dplyr::filter(Fecha == fecha_hoy) %>%
-#     dplyr::mutate(
-#       Direccion_consulta = ifelse(
-#         is.na(Numero),
-#         Calle,
-#         paste(Calle, Numero)
-#       )
-#     )
-# 
-#   # 4) Generar nuevas posiciones con dirección y fecha
-#   nuevas_posiciones <- posiciones_dfr %>%
-#     dplyr::left_join(
-#       ubicaciones_deldia %>% dplyr::select(gid, Direccion_consulta),
-#       by = c("GID" = "gid")
-#     ) %>%
-#     dplyr::mutate(
-#       Direccion_dfr = dplyr::coalesce(Direccion_dfr, Direccion_consulta, "NO HAY DIRECCION"),
-#       Fecha = fecha_hoy
-#     ) %>%
-#     dplyr::select(-Direccion_consulta)
-# 
-#   # 5) Guardar o actualizar el histórico
-#   if (!file.exists(ruta_historico)) {
-#     nuevas_posiciones <- nuevas_posiciones %>%
-#       distinct()
-#     saveRDS(nuevas_posiciones, file = ruta_historico)
-#     message("📦 Histórico creado en: ", ruta_historico)
-#     return(nuevas_posiciones)
-#   } else {
-#     historico <- readRDS(ruta_historico)
-#     historico_actualizado <- dplyr::bind_rows(historico, nuevas_posiciones)
-#     historico_actualizado <- historico_actualizado %>%
-#       distinct()
-#     saveRDS(historico_actualizado, file = ruta_historico)
-#     message("🔄 Histórico actualizado en: ", ruta_historico)
-#     return(historico_actualizado)
-#   }
-# }
-# 
-# 
-# 
+#################### LO DE ARRIBA ESTÁ TODO IMPLEMENTADO YA
+
+
 
 
 
@@ -430,35 +276,35 @@ todos_los_datos <- actualizar_posiciones_historico(
 # ############################### OBTENER LAS POSICIONES #################################
 # ############################################################################################################################
 # 
-# URL base del WFS con filtro
-url <- "https://geoserver-ed.imm.gub.uy/geoserver/wfs"
-
-# Tu nombre de usuario (el mismo de QGIS) y tu contraseña (pedís al administrador si no la sabés)
-usuario <- "im4445285"
-contrasena <- "Nico1919*"
-
-# Parámetros de consulta WFS (el mismo tipo que QGIS)
-query <- list(
-  service = "WFS",
-  version = "1.0.0",
-  request = "GetFeature",
-  typeName = "dfr:E_DF_POSICIONES_RECORRIDO",
-  srsname = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# Hacer la consulta autenticada
-respuesta <- GET(
-  url,
-  query = query,
-  authenticate(usuario, contrasena)
-)
-
-# Guardar el GeoJSON temporalmente
-writeBin(content(respuesta, "raw"), "posiciones_recorrido.json")
-
-# Leer como objeto espacial
-posiciones <- st_read("posiciones_recorrido.json")
+# # URL base del WFS con filtro
+# url <- "https://geoserver-ed.imm.gub.uy/geoserver/wfs"
+# 
+# # Tu nombre de usuario (el mismo de QGIS) y tu contraseña (pedís al administrador si no la sabés)
+# usuario <- "im4445285"
+# contrasena <- "Nico1919*"
+# 
+# # Parámetros de consulta WFS (el mismo tipo que QGIS)
+# query <- list(
+#   service = "WFS",
+#   version = "1.0.0",
+#   request = "GetFeature",
+#   typeName = "dfr:E_DF_POSICIONES_RECORRIDO",
+#   srsname = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # Hacer la consulta autenticada
+# respuesta <- GET(
+#   url,
+#   query = query,
+#   authenticate(usuario, contrasena)
+# )
+# 
+# # Guardar el GeoJSON temporalmente
+# writeBin(content(respuesta, "raw"), "dfr:E_DF_POSICIONES_RECORRIDO.json")
+# 
+# # Leer como objeto espacial
+# posiciones <- st_read("dfr:E_DF_POSICIONES_RECORRIDO.json")
 
 
 ############################################################################################################################
@@ -495,10 +341,10 @@ respuesta <- GET(
 )
 
 # Guardar el GeoJSON temporalmente
-writeBin(content(respuesta, "raw"), "zona_recorrido.json")
+writeBin(content(respuesta, "raw"), "dfr:E_DF_ZONA_RECORRIDO.json")
 
 # Leer como objeto espacial
-zona <- st_read("zona_recorrido.json")
+zona <- st_read("dfr:E_DF_ZONA_RECORRIDO.json")
 
 ### mapa
 
@@ -551,10 +397,52 @@ drawZonaLeaflet <- function(zona_df, fila = 1, tile_provider = "OpenStreetMap") 
     )
 }
 
-mapa <- drawZonaLeaflet(zona, fila = 21, tile_provider = "cartodb")
+drawZonasLeaflet_global <- function(zona_df, tile_provider = "OpenStreetMap") {
+  # 1. Reproyectar todo a lon/lat
+  zonas_ll <- sf::st_transform(zona_df, 4326)
+  
+  # 2. Iniciar el mapa con el proveedor de tiles
+  mapa <- switch(
+    tolower(tile_provider),
+    cartodb = leaflet::leaflet(zonas_ll) %>% leaflet::addProviderTiles("CartoDB.Positron"),
+    stamen  = leaflet::leaflet(zonas_ll) %>% leaflet::addProviderTiles("Stamen.TonerLite"),
+    leaflet::leaflet(zonas_ll) %>% leaflet::addTiles()
+  )
+  
+  # 3. Añadir polígonos y una sola leyenda
+  mapa %>%
+    leaflet::addPolygons(
+      color       = "darkgreen",
+      weight      = 2,
+      fillOpacity = 0.3,
+      popup       = ~paste0("<strong>ID:</strong> ", id)
+    ) %>%
+    leaflet::addLegend(
+      position = "bottomright",
+      colors   = "darkgreen",
+      labels   = "Zonas",
+      title    = "Polígonos"
+    )
+}
+
+mapa <- drawZonasLeaflet_global(zona, tile_provider = "cartodb")
 
 # Y para visualizarlo en RStudio:
 mapa
+
+
+### para exportarlo.
+zona_filtrada <- zona %>%
+  select(GID,COD_RECORRIDO,MUNICIPIO,geometry)
+
+# Con esto GDAL convertirá la geometría a WKT automáticamente
+st_write(
+  obj           = zona_filtrada,
+  dsn           = "salida_gdal.csv",
+  driver        = "CSV",
+  layer_options = "GEOMETRY=AS_WKT"
+)
+
 
 
 
@@ -762,38 +650,38 @@ accesos <- st_read("accesos_montevideo.json", quiet = TRUE)
 
 
 -------------------
-  ### demora mucho ver
-  
-  library(httr)
-library(sf)
-
-# URL base del GeoServer público
-url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# Parámetros para consultar la capa de contenedores
-query <- list(
-  service = "WFS",
-  version = "1.0.0",
-  request = "GetFeature",
-  typeName = "ide:V_DF_POSICIONES_MAPAWEB_GEOM",
-  srsname = "EPSG:32721",
-  outputFormat = "application/json"
-  ,
-  maxFeatures = 100  # Cambiar o quitar si querés más datos
-)
-
-# Hacer la consulta
-respuesta <- GET(url, query = query)
-
-# Guardar temporalmente
-writeBin(content(respuesta, "raw"), "contenedores.json")
-
-# Leer como objeto sf
-contenedores <- st_read("contenedores.json", quiet = TRUE)
-
-# Ver nombres de columnas
-names(contenedores)
-
+#   ### demora mucho ver
+#   
+#   library(httr)
+# library(sf)
+# 
+# # URL base del GeoServer público
+# url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # Parámetros para consultar la capa de contenedores
+# query <- list(
+#   service = "WFS",
+#   version = "1.0.0",
+#   request = "GetFeature",
+#   typeName = "ide:V_DF_POSICIONES_MAPAWEB_GEOM",
+#   srsname = "EPSG:32721",
+#   outputFormat = "application/json"
+#   ,
+#   maxFeatures = 100  # Cambiar o quitar si querés más datos
+# )
+# 
+# # Hacer la consulta
+# respuesta <- GET(url, query = query)
+# 
+# # Guardar temporalmente
+# writeBin(content(respuesta, "raw"), "contenedores.json")
+# 
+# # Leer como objeto sf
+# contenedores <- st_read("contenedores.json", quiet = TRUE)
+# 
+# # Ver nombres de columnas
+# names(contenedores)
+# 
 
 
 ------------
@@ -892,368 +780,374 @@ names(contenedores)
 
 ------------
   
-  
-#   📍 Descripción: Límite de los Municipios de Montevideo según el Decreto No. 33227
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs
-
-
-  # URL del servidor público de la IMM
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# Parámetros para consultar la capa de municipios
-query <- list(
-  service = "WFS",
-  version = "1.0.0",
-  request = "GetFeature",
-  typeName = "geomatica:ide_v_sig_municipios",
-  srsname = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# Ejecutar la consulta
-respuesta <- GET(url, query = query)
-
-# Guardar temporalmente
-writeBin(content(respuesta, "raw"), "municipios.json")
-
-# Leer como objeto espacial
-municipios <- st_read("municipios.json", quiet = TRUE)
-
-# Ver columnas
-names(municipios)
-
-mapa_municipios <- drawPolygonsLeaflet(municipios, tile_provider = "CartoDB")
-mapa_municipios  # lo despliega en RStudio o tu navegador
-
--------
-# 
-#   #   📍 Título: Municipios de Montevideo
-#   # 📝 Descripción: División municipal del departamento de Montevideo
-#   # 🌍 CRS: EPSG:32721
-#   # 🔓 Acceso: Público desde http://geoserver.montevideo.gub.uy/geoserver/wfs  
 #   
-#   # URL del GeoServer público
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Parámetros de la consulta
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:sig_municipios",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json"
-# )
-# 
-# # Ejecutar consulta
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar como archivo temporal
-# writeBin(content(respuesta, "raw"), "sig_municipios.json")
-# 
-# # Leer como objeto sf
-# municipios_2 <- st_read("sig_municipios.json", quiet = TRUE)
-
-
-
-
-----
-# 
-#   📍 Título: V_DF_POSICIONES_MAPAWEB2_GEOM
-# 📝 Descripción: No tiene un <Abstract>, pero por el nombre y palabras clave se asocia a posiciones de contenedores (como V_DF_POSICIONES_MAPAWEB_GEOM)
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs  
-#   
-#   # URL del servidor WFS
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Parámetros de consulta
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_DF_POSICIONES_MAPAWEB2_GEOM",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # Para prueba rápida
-# )
-# 
-# # Ejecutar consulta
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar temporalmente
-# writeBin(content(respuesta, "raw"), "posiciones_mapaweb2.json")
-# 
-# # Leer en R
-# posiciones2 <- st_read("posiciones_mapaweb2.json", quiet = TRUE)
-
--
-------------------
-  
-#   📍 Descripción: Similar o complementaria a imm:V_DF_POSICIONES_MAPAWEB2_GEOM
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs
-  
-  # Servidor público de GeoServer
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Parámetros WFS
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_DF_POSICIONES_MAPAWEB_GEOM",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # opcional para prueba
-# )
-# 
-# # Ejecutar consulta
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar respuesta
-# writeBin(content(respuesta, "raw"), "posiciones_mapaweb_geom.json")
-# 
-# # Leer con sf
-# posiciones_geom <- st_read("posiciones_mapaweb_geom.json", quiet = TRUE)
-
-
-# ----------------
-#   
-# #   📍 Título: V_DF_POSICIONES_RECORRIDO_GEOM
-# # 📝 Descripción: No está especificada, pero por el nombre, probablemente representa las posiciones planificadas de los contenedores dentro de los recorridos de recolección.
+# #   📍 Descripción: Límite de los Municipios de Montevideo según el Decreto No. 33227
 # # 🌍 CRS: EPSG:32721
-# # 🔓 Servidor: http://geoserver.montevideo.gub.uy/geoserver/wfs
-#   
-#   # URL base del servidor GeoServer público
+# # 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs
+# 
+# 
+#   # URL del servidor público de la IMM
 #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
 # 
-# # Armar la consulta WFS
+# # Parámetros para consultar la capa de municipios
 # query <- list(
 #   service = "WFS",
 #   version = "1.0.0",
 #   request = "GetFeature",
-#   typeName = "imm:V_DF_POSICIONES_RECORRIDO_GEOM",
+#   typeName = "geomatica:ide_v_sig_municipios",
 #   srsname = "EPSG:32721",
 #   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # para prueba
-# )
-# 
-# # Realizar la solicitud
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar resultado
-# writeBin(content(respuesta, "raw"), "posiciones_recorrido_geom.json")
-# 
-# # Leer como sf
-# posiciones_recorrido <- st_read("posiciones_recorrido_geom.json", quiet = TRUE)
-# 
-# # Ver columnas
-# names(posiciones_recorrido)
-# 
-
-
------------------
-#   
-# #   
-# #   📍 Título: V_DF_PROM_LLENADO_CONTENEDORES
-# # 📝 Descripción: No especificada, pero por el nombre, representa claramente el promedio de llenado de los contenedores de residuos de Montevideo.
-# # 🌍 CRS: EPSG:32721
-# 
-#   # URL del servidor público
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Armar la consulta
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_DF_PROM_LLENADO_CONTENEDORES",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # opcional para test
 # )
 # 
 # # Ejecutar la consulta
 # respuesta <- GET(url, query = query)
 # 
-# # Guardar el archivo temporalmente
-# writeBin(content(respuesta, "raw"), "prom_llenado_contenedores.json")
+# # Guardar temporalmente
+# writeBin(content(respuesta, "raw"), "municipios.json")
 # 
 # # Leer como objeto espacial
-# prom_llenado <- st_read("prom_llenado_contenedores.json", quiet = TRUE)
-
-
-------------
+# municipios <- st_read("municipios.json", quiet = TRUE)
+# 
+# # Ver columnas
+# names(municipios)
+# 
+# mapa_municipios <- drawPolygonsLeaflet(municipios, tile_provider = "CartoDB")
+# mapa_municipios  # lo despliega en RStudio o tu navegador
+# 
+# -------
+# # 
+# #   #   📍 Título: Municipios de Montevideo
+# #   # 📝 Descripción: División municipal del departamento de Montevideo
+# #   # 🌍 CRS: EPSG:32721
+# #   # 🔓 Acceso: Público desde http://geoserver.montevideo.gub.uy/geoserver/wfs  
 # #   
-# #   📍 Título: V_DF_RUTAS_RECORRIDO
-# # 📝 Descripción: No provista explícitamente, pero por el nombre se deduce que representa las rutas planificadas de los recorridos de recolección de residuos.
-# # 🌍 CRS: EPSG:32721 (UTM zona 21 Sur)
-# # 🔓 Acceso público: Servidor http://geoserver.montevideo.gub.uy/geoserver/wfs
+# #   # URL del GeoServer público
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Parámetros de la consulta
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:sig_municipios",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# # )
+# # 
+# # # Ejecutar consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar como archivo temporal
+# # writeBin(content(respuesta, "raw"), "sig_municipios.json")
+# # 
+# # # Leer como objeto sf
+# # municipios_2 <- st_read("sig_municipios.json", quiet = TRUE)
+# 
+# 
+# 
+# 
+# ----
+# # 
+# #   📍 Título: V_DF_POSICIONES_MAPAWEB2_GEOM
+# # 📝 Descripción: No tiene un <Abstract>, pero por el nombre y palabras clave se asocia a posiciones de contenedores (como V_DF_POSICIONES_MAPAWEB_GEOM)
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs  
+# #   
+# #   # URL del servidor WFS
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Parámetros de consulta
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_POSICIONES_MAPAWEB2_GEOM",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # Para prueba rápida
+# # )
+# # 
+# # # Ejecutar consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar temporalmente
+# # writeBin(content(respuesta, "raw"), "posiciones_mapaweb2.json")
+# # 
+# # # Leer en R
+# # posiciones2 <- st_read("posiciones_mapaweb2.json", quiet = TRUE)
+# 
+# -
+# ------------------
 #   
-#   # URL base del servidor GeoServer
+# #   📍 Descripción: Similar o complementaria a imm:V_DF_POSICIONES_MAPAWEB2_GEOM
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público: http://geoserver.montevideo.gub.uy/geoserver/wfs
+#   
+#   # Servidor público de GeoServer
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Parámetros WFS
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_POSICIONES_MAPAWEB_GEOM",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # opcional para prueba
+# # )
+# # 
+# # # Ejecutar consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar respuesta
+# # writeBin(content(respuesta, "raw"), "posiciones_mapaweb_geom.json")
+# # 
+# # # Leer con sf
+# # posiciones_geom <- st_read("posiciones_mapaweb_geom.json", quiet = TRUE)
+# 
+# 
+# # ----------------
+# #   
+# # #   📍 Título: V_DF_POSICIONES_RECORRIDO_GEOM
+# # # 📝 Descripción: No está especificada, pero por el nombre, probablemente representa las posiciones planificadas de los contenedores dentro de los recorridos de recolección.
+# # # 🌍 CRS: EPSG:32721
+# # # 🔓 Servidor: http://geoserver.montevideo.gub.uy/geoserver/wfs
+# #   
+# #   # URL base del servidor GeoServer público
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Armar la consulta WFS
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_POSICIONES_RECORRIDO_GEOM",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # para prueba
+# # )
+# # 
+# # # Realizar la solicitud
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar resultado
+# # writeBin(content(respuesta, "raw"), "posiciones_recorrido_geom.json")
+# # 
+# # # Leer como sf
+# # posiciones_recorrido <- st_read("posiciones_recorrido_geom.json", quiet = TRUE)
+# # 
+# # # Ver columnas
+# # names(posiciones_recorrido)
+# # 
+# 
+# 
+# -----------------
+# #   
+# # #   
+# # #   📍 Título: V_DF_PROM_LLENADO_CONTENEDORES
+# # # 📝 Descripción: No especificada, pero por el nombre, representa claramente el promedio de llenado de los contenedores de residuos de Montevideo.
+# # # 🌍 CRS: EPSG:32721
+# # 
+# #   # URL del servidor público
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Armar la consulta
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_PROM_LLENADO_CONTENEDORES",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # opcional para test
+# # )
+# # 
+# # # Ejecutar la consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar el archivo temporalmente
+# # writeBin(content(respuesta, "raw"), "prom_llenado_contenedores.json")
+# # 
+# # # Leer como objeto espacial
+# # prom_llenado <- st_read("prom_llenado_contenedores.json", quiet = TRUE)
+# 
+# 
+# ------------
+# # #   
+# # #   📍 Título: V_DF_RUTAS_RECORRIDO
+# # # 📝 Descripción: No provista explícitamente, pero por el nombre se deduce que representa las rutas planificadas de los recorridos de recolección de residuos.
+# # # 🌍 CRS: EPSG:32721 (UTM zona 21 Sur)
+# # # 🔓 Acceso público: Servidor http://geoserver.montevideo.gub.uy/geoserver/wfs
+# #   
+# #   # URL base del servidor GeoServer
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Parámetros WFS
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_RUTAS_RECORRIDO",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # limitar para prueba
+# # )
+# # 
+# # # Ejecutar consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar resultado temporalmente
+# # writeBin(content(respuesta, "raw"), "rutas_recorrido.json")
+# # 
+# # # Leer en R como objeto espacial
+# # rutas2 <- st_read("rutas_recorrido.json", quiet = TRUE)
+# # 
+# # 
+# 
+# 
+# -------------
+# # 
+# #   📍 Título: Zonas de recolección por turno (geométricas)
+# # 📝 Descripción: No se especifica, pero por el nombre, representa zonas geográficas de recolección diferenciadas por turno (matutino, vespertino, nocturno, etc.)
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
+# # 
+# #   # URL del servidor GeoServer
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Consulta con parámetros WFS
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_ZONAS_REC_TURNO_GEOM",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #maxFeatures = 100  # opcional
+# # )
+# # 
+# # # Hacer la consulta GET
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar temporalmente
+# # writeBin(content(respuesta, "raw"), "zonas_rec_turno.json")
+# # 
+# # # Leer con sf
+# # zonas_turno <- st_read("zonas_rec_turno.json", quiet = TRUE)
+# # 
+# # 
+# # 
+# # # Carga la librería
+# # library(writexl)
+# # 
+# # # Supongamos que tu df se llama df
+# # write_xlsx(zonas_turno, path = "mi_tabla.xlsx")
+# 
+# ------------
+# #   
+# #   
+# #   📍 Título: Zona de Recorrido Vigente
+# # 📝 Descripción: Aunque no tiene abstract, por el nombre parece representar las zonas actualmente vigentes de recolección de residuos, probablemente agrupadas por recorrido.
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
+# #   
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Armar parámetros de consulta
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_DF_ZONA_RECORRIDO_VIGENTE",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json",
+# #   maxFeatures = 100  # opcional
+# # )
+# # 
+# # # Ejecutar la consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar resultado temporalmente
+# # writeBin(content(respuesta, "raw"), "zona_recorrido_vigente.json")
+# # 
+# # # Leer con sf
+# # zona_vigente <- st_read("zona_recorrido_vigente.json", quiet = TRUE)
+# 
+# -----
+#   
+# #   Título: Reclamos del Sistema Único de Reclamos (SUR)
+# # 📝 Descripción: Incluye todos los reclamos con ubicación, que están abiertos o cerrados en los últimos 3 meses.
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
+#   
+# #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# # 
+# # # Parámetros de la consulta WFS
+# # query <- list(
+# #   service = "WFS",
+# #   version = "1.0.0",
+# #   request = "GetFeature",
+# #   typeName = "imm:V_RE_RECLAMOS",
+# #   srsname = "EPSG:32721",
+# #   outputFormat = "application/json"
+# #   #,
+# #   #maxFeatures = 100  # para prueba rápida
+# # )
+# # 
+# # # Ejecutar consulta
+# # respuesta <- GET(url, query = query)
+# # 
+# # # Guardar resultado
+# # writeBin(content(respuesta, "raw"), "reclamos_sur.json")
+# # 
+# # # Leer en R como objeto espacial
+# # reclamos <- st_read("reclamos_sur.json", quiet = TRUE)
+# 
+# 
+# 
+# ---------------
+# #   
+# #   📍 Título: Reclamos del área Limpieza (SUR)
+# # 📝 Descripción: Reclamos del Sistema Único de Reclamos (SUR) relacionados con Limpieza, tanto abiertos como cerrados en los últimos 3 meses, provenientes de la vista v_re_reclamos_limp_portal.
+# # 🌍 CRS: EPSG:32721
+# # 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
+#   
 #   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
 # 
-# # Parámetros WFS
+# # Armar consulta
 # query <- list(
 #   service = "WFS",
 #   version = "1.0.0",
 #   request = "GetFeature",
-#   typeName = "imm:V_DF_RUTAS_RECORRIDO",
+#   typeName = "imm:V_RE_RECLAMOS_LIMP_PORTAL",
 #   srsname = "EPSG:32721",
 #   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # limitar para prueba
-# )
-# 
-# # Ejecutar consulta
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar resultado temporalmente
-# writeBin(content(respuesta, "raw"), "rutas_recorrido.json")
-# 
-# # Leer en R como objeto espacial
-# rutas2 <- st_read("rutas_recorrido.json", quiet = TRUE)
-# 
-# 
-
-
--------------
-#   
-#   📍 Título: Zonas de recolección por turno (geométricas)
-# 📝 Descripción: No se especifica, pero por el nombre, representa zonas geográficas de recolección diferenciadas por turno (matutino, vespertino, nocturno, etc.)
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
-#   
-#   # URL del servidor GeoServer
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Consulta con parámetros WFS
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_DF_ZONAS_REC_TURNO_GEOM",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json",
-#   maxFeatures = 100  # opcional
-# )
-# 
-# # Hacer la consulta GET
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar temporalmente
-# writeBin(content(respuesta, "raw"), "zonas_rec_turno.json")
-# 
-# # Leer con sf
-# zonas_turno <- st_read("zonas_rec_turno.json", quiet = TRUE)
-# 
-
-
-------------
-#   
-#   
-#   📍 Título: Zona de Recorrido Vigente
-# 📝 Descripción: Aunque no tiene abstract, por el nombre parece representar las zonas actualmente vigentes de recolección de residuos, probablemente agrupadas por recorrido.
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
-#   
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-# 
-# # Armar parámetros de consulta
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_DF_ZONA_RECORRIDO_VIGENTE",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json",
-#   maxFeatures = 100  # opcional
+#   # ,
+#   # maxFeatures = 10000  # para prueba rápida
 # )
 # 
 # # Ejecutar la consulta
 # respuesta <- GET(url, query = query)
 # 
-# # Guardar resultado temporalmente
-# writeBin(content(respuesta, "raw"), "zona_recorrido_vigente.json")
+# # Guardar contenido
+# writeBin(content(respuesta, "raw"), "reclamos_limpieza.json")
 # 
 # # Leer con sf
-# zona_vigente <- st_read("zona_recorrido_vigente.json", quiet = TRUE)
-
------
-  
-#   Título: Reclamos del Sistema Único de Reclamos (SUR)
-# 📝 Descripción: Incluye todos los reclamos con ubicación, que están abiertos o cerrados en los últimos 3 meses.
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
-  
-#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# reclamos_limp <- st_read("reclamos_limpieza.json", quiet = TRUE)
 # 
-# # Parámetros de la consulta WFS
-# query <- list(
-#   service = "WFS",
-#   version = "1.0.0",
-#   request = "GetFeature",
-#   typeName = "imm:V_RE_RECLAMOS",
-#   srsname = "EPSG:32721",
-#   outputFormat = "application/json"
-#   #,
-#   #maxFeatures = 100  # para prueba rápida
+# reclamos_limp$FECHA_INGRESO_RECLAMO <- as.Date(
+#   reclamos_limp$FECHA_INGRESO_RECLAMO,
+#   format = "%d/%m/%Y"
 # )
 # 
-# # Ejecutar consulta
-# respuesta <- GET(url, query = query)
-# 
-# # Guardar resultado
-# writeBin(content(respuesta, "raw"), "reclamos_sur.json")
-# 
-# # Leer en R como objeto espacial
-# reclamos <- st_read("reclamos_sur.json", quiet = TRUE)
-
-
-
----------------
-#   
-#   📍 Título: Reclamos del área Limpieza (SUR)
-# 📝 Descripción: Reclamos del Sistema Único de Reclamos (SUR) relacionados con Limpieza, tanto abiertos como cerrados en los últimos 3 meses, provenientes de la vista v_re_reclamos_limp_portal.
-# 🌍 CRS: EPSG:32721
-# 🔓 Servidor público WFS: http://geoserver.montevideo.gub.uy/geoserver/wfs
-  
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# Armar consulta
-query <- list(
-  service = "WFS",
-  version = "1.0.0",
-  request = "GetFeature",
-  typeName = "imm:V_RE_RECLAMOS_LIMP_PORTAL",
-  srsname = "EPSG:32721",
-  outputFormat = "application/json"
-  # ,
-  # maxFeatures = 10000  # para prueba rápida
-)
-
-# Ejecutar la consulta
-respuesta <- GET(url, query = query)
-
-# Guardar contenido
-writeBin(content(respuesta, "raw"), "reclamos_limpieza.json")
-
-# Leer con sf
-reclamos_limp <- st_read("reclamos_limpieza.json", quiet = TRUE)
-
-reclamos_limp$FECHA_INGRESO_RECLAMO <- as.Date(
-  reclamos_limp$FECHA_INGRESO_RECLAMO,
-  format = "%d/%m/%Y"
-)
-
-reclamos_limp_traslado <- reclamos_limp %>% 
-  filter(DESC_TIPO_PROBLEMA == "Solicitar traslado de contenedor")
+# reclamos_limp_traslado <- reclamos_limp %>% 
+#   filter(DESC_TIPO_PROBLEMA == "Solicitar traslado de contenedor")
 
 ----
 # #   
@@ -1314,231 +1208,226 @@ reclamos_limp_traslado <- reclamos_limp %>%
 #                    label = ~paste("Reclamo:", NUMERO_RECLAMO,
 #                                   "<br>Tipo:", DESC_TIPO_PROBLEMA,
 #                                   "<br>Estado:", DESC_ESTADO))
+# 
+# 
+# library(httr)
+# library(sf)
+# 
+# # 1) Parámetros WFS
+# url   <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "imm:V_DF_POSICIONES_MAPAWEB2_GEOM",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 2) Descargar con barra de progreso
+# cat("🔽 Iniciando descarga de la capa...\n")
+# resp <- GET(url, query = query, progress())
+# stop_for_status(resp)
+# cat("✅ Descarga completada. Guardando en disco...\n")
+# 
+# writeBin(content(resp, "raw"), "contenedores.json")
+# cat("📝 Archivo 'contenedores.json' generado.\n\n")
+# 
+# # 3) Leer con st_read y ver el mensaje de lectura
+# cat("📂 Leyendo el GeoJSON con sf::st_read() (quiet = FALSE)...\n")
+# contenedores <- st_read("contenedores.json", quiet = FALSE)
+# cat("✅ Lectura completada.\n\n")
+# 
+# # 4) Explorar un poco
+# cat("📊 Columnas disponibles:\n")
+# print(names(contenedores))
+# cat("\n📈 Primeras 5 filas:\n")
+# print(head(contenedores, 5))
+# 
+# 
+# 
+# 
+# # 1. Cargar librerías
+# library(httr)
+# library(sf)
+# 
+# # 2. URL base del WFS
+# url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 3. Parámetros de consulta para la capa analisisdatos:ad_lim_recorridos
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "analisisdatos:ad_lim_recorridos",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 4. Hacer la consulta (en este caso no se requiere autenticación)
+# respuesta <- GET(url, query = query)
+# 
+# # 5. Guardar el GeoJSON en disco
+# writeBin(content(respuesta, "raw"), "ad_lim_recorridos.json")
+# 
+# # 6. Leer el GeoJSON como un objeto sf
+# lim_recorridos <- st_read("ad_lim_recorridos.json")
+# 
+# 
+# --------------------
+#   
+#   
+#   # 1. URL base del WFS
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 2. Par�metros para la capa lim_capa_contenedoresinactivos
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "analisisdatos:lim_capa_contenedoresinactivos",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 3. Hacer la consulta
+# respuesta <- GET(url, query = query)
+# 
+# # 4. Guardar GeoJSON localmente
+# writeBin(content(respuesta, "raw"), "contenedores_inactivos.json")
+# 
+# # 5. Leer como objeto sf
+# cont_inactivos <- st_read("contenedores_inactivos.json")
+# 
+# --------------------
+#   
+#   
+#   # URL del WFS
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # Parámetros para la capa lim_capa_ultlevantes
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "analisisdatos:lim_capa_ultlevantes",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 1) Hacer la petición
+# respuesta <- GET(url, query = query)
+# 
+# # 2) Guardar como GeoJSON
+# writeBin(content(respuesta, "raw"), "ultlevantes.json")
+# 
+# # 3) Leer con sf
+# ultlevantes <- st_read("ultlevantes.json")
+# 
+# --------------
+#   ##################################################################################  
+# ######################### ULTIMO LEVANTE #########################################  
+# ##################################################################################  
+#   
+#   # 1. Definir URL del WFS
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 2. Parámetros para v_lim_ultlevantes
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "analisisdatos:v_lim_ultlevantes",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 3. Hacer la petición
+# respuesta <- GET(url, query = query)
+# 
+# # 4. Guardar GeoJSON temporalmente
+# writeBin(content(respuesta, "raw"), "v_lim_ultlevantes.json")
+# 
+# # 5. Leer como objeto sf
+# v_ultlevantes <- st_read("v_lim_ultlevantes.json")
+# 
+# 
+# ##################################################################################  
+# ##################################################################################  
+# ##################################################################################  
+#   
+# # 1. URL del WFS
+# url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 2. Parámetros para la capa imm:v_gce_basurales
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "imm:v_gce_basurales",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 3. Ejecutar la petición
+# respuesta <- GET(url, query = query)
+# 
+# # 4. Guardar el GeoJSON
+# writeBin(content(respuesta, "raw"), "gce_basurales.json")
+# 
+# # 5. Leer con sf
+# gce_basurales <- st_read("gce_basurales.json")
+# 
+# ----------------------
+#   # 1. URL del WFS
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 2. Parámetros para la capa imm:v_gce_basurales
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "analisisdatos:v_ad_lim_recorridos",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 3. Ejecutar la petición
+# respuesta <- GET(url, query = query)
+# 
+# # 4. Guardar el GeoJSON
+# writeBin(content(respuesta, "raw"), "lim_recorridos.json")
+# 
+# # 5. Leer con sf
+# lim_recorridos <- st_read("lim_recorridos.json")
 
+# 
+#   # 1. URL del WFS
+#   url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# 
+# # 2. Parámetros para la capa V_DF_PROM_LLENADO_CONTENEDORES
+# query <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = "imm:V_DF_PROM_LLENADO_CONTENEDORES",
+#   srsname      = "EPSG:32721",
+#   outputFormat = "application/json"
+# )
+# 
+# # 3. Ejecutar la petición
+# respuesta <- GET(url, query = query)
+# 
+# # 4. Guardar el GeoJSON temporalmente
+# writeBin(content(respuesta, "raw"), "prom_llenado_contenedores.json")
+# 
+# # 5. Leer como objeto sf
+# prom_llenado <- st_read("prom_llenado_contenedores.json")
+# 
 
-library(httr)
-library(sf)
+# ---- CIRCUITOS Y POSICIONES DESDE GEOSERVER (PARECE IGUAL QUE EN ) ----
+# Obtener la url.
 
-# 1) Parámetros WFS
-url   <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "imm:V_DF_POSICIONES_MAPAWEB2_GEOM",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 2) Descargar con barra de progreso
-cat("🔽 Iniciando descarga de la capa...\n")
-resp <- GET(url, query = query, progress())
-stop_for_status(resp)
-cat("✅ Descarga completada. Guardando en disco...\n")
-
-writeBin(content(resp, "raw"), "contenedores.json")
-cat("📝 Archivo 'contenedores.json' generado.\n\n")
-
-# 3) Leer con st_read y ver el mensaje de lectura
-cat("📂 Leyendo el GeoJSON con sf::st_read() (quiet = FALSE)...\n")
-contenedores <- st_read("contenedores.json", quiet = FALSE)
-cat("✅ Lectura completada.\n\n")
-
-# 4) Explorar un poco
-cat("📊 Columnas disponibles:\n")
-print(names(contenedores))
-cat("\n📈 Primeras 5 filas:\n")
-print(head(contenedores, 5))
-
-
-
-
-# 1. Cargar librerías
-library(httr)
-library(sf)
-
-# 2. URL base del WFS
-url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 3. Parámetros de consulta para la capa analisisdatos:ad_lim_recorridos
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "analisisdatos:ad_lim_recorridos",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 4. Hacer la consulta (en este caso no se requiere autenticación)
-respuesta <- GET(url, query = query)
-
-# 5. Guardar el GeoJSON en disco
-writeBin(content(respuesta, "raw"), "ad_lim_recorridos.json")
-
-# 6. Leer el GeoJSON como un objeto sf
-lim_recorridos <- st_read("ad_lim_recorridos.json")
-
-
---------------------
-  
-  
-  # 1. URL base del WFS
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 2. Par�metros para la capa lim_capa_contenedoresinactivos
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "analisisdatos:lim_capa_contenedoresinactivos",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 3. Hacer la consulta
-respuesta <- GET(url, query = query)
-
-# 4. Guardar GeoJSON localmente
-writeBin(content(respuesta, "raw"), "contenedores_inactivos.json")
-
-# 5. Leer como objeto sf
-cont_inactivos <- st_read("contenedores_inactivos.json")
-
---------------------
-  
-  
-  # URL del WFS
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# Parámetros para la capa lim_capa_ultlevantes
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "analisisdatos:lim_capa_ultlevantes",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 1) Hacer la petición
-respuesta <- GET(url, query = query)
-
-# 2) Guardar como GeoJSON
-writeBin(content(respuesta, "raw"), "ultlevantes.json")
-
-# 3) Leer con sf
-ultlevantes <- st_read("ultlevantes.json")
-
---------------
-  ##################################################################################  
-######################### ULTIMO LEVANTE #########################################  
-##################################################################################  
-  
-  # 1. Definir URL del WFS
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 2. Parámetros para v_lim_ultlevantes
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "analisisdatos:v_lim_ultlevantes",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 3. Hacer la petición
-respuesta <- GET(url, query = query)
-
-# 4. Guardar GeoJSON temporalmente
-writeBin(content(respuesta, "raw"), "v_lim_ultlevantes.json")
-
-# 5. Leer como objeto sf
-v_ultlevantes <- st_read("v_lim_ultlevantes.json")
-
-
-##################################################################################  
-##################################################################################  
-##################################################################################  
-  
-# 1. URL del WFS
-url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 2. Parámetros para la capa imm:v_gce_basurales
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "imm:v_gce_basurales",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 3. Ejecutar la petición
-respuesta <- GET(url, query = query)
-
-# 4. Guardar el GeoJSON
-writeBin(content(respuesta, "raw"), "gce_basurales.json")
-
-# 5. Leer con sf
-gce_basurales <- st_read("gce_basurales.json")
-
-----------------------
-  # 1. URL del WFS
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 2. Parámetros para la capa imm:v_gce_basurales
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "analisisdatos:v_ad_lim_recorridos",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 3. Ejecutar la petición
-respuesta <- GET(url, query = query)
-
-# 4. Guardar el GeoJSON
-writeBin(content(respuesta, "raw"), "lim_recorridos.json")
-
-# 5. Leer con sf
-lim_recorridos <- st_read("lim_recorridos.json")
-
-
-
-analisisdatos:v_ad_lim_recorridos
-
---*------------
-  
-  # 1. URL del WFS
-  url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-
-# 2. Parámetros para la capa V_DF_PROM_LLENADO_CONTENEDORES
-query <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = "imm:V_DF_PROM_LLENADO_CONTENEDORES",
-  srsname      = "EPSG:32721",
-  outputFormat = "application/json"
-)
-
-# 3. Ejecutar la petición
-respuesta <- GET(url, query = query)
-
-# 4. Guardar el GeoJSON temporalmente
-writeBin(content(respuesta, "raw"), "prom_llenado_contenedores.json")
-
-# 5. Leer como objeto sf
-prom_llenado <- st_read("prom_llenado_contenedores.json")
-
-
-
-----------
-  # URLs tal cual vienen en tu JS
   containersUrl <- paste0(
     "https://geoserver-ed.imm.gub.uy/geoserver/wfs?acceptversions=2.0.0",
     "&SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0",
@@ -1556,9 +1445,17 @@ circuitosUrl <- paste0(
   "&outputFormat=application/json"
 )
 
+
 # Lee directamente la GeoJSON como un objeto sf
 containers_sf <- st_read(containersUrl)
 circuitos_sf  <- st_read(circuitosUrl)
+
+# ---- FIN ----
+
+
+# ---- OBTENER LA INFORMACION DE LOS LEVANTES ----
+library(jsonlite)
+
 
 
 # 1) Traer el JSON crudo
@@ -1591,7 +1488,7 @@ df$UNA                  <- as.numeric(df$UNA)
 df$estaProgramado       <- as.logical(df$estaProgramado)
 df$contenedorGid        <- as.integer(df$contenedorGid)
 
-
+# ---- FIN ----
 
 
 
@@ -1791,142 +1688,143 @@ library(lubridate)
 
 
 
+# ----- Verificador de token -----
+
+library(httr)
+library(jsonlite)
+
+verificar_endpoint_desde_config <- function(path, token, config_url = "https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/assets/config/config.json") {
+  
+  # Paso 1: Descargar el config.json
+  resp_cfg <- try(GET(config_url), silent = TRUE)
+  if (inherits(resp_cfg, "try-error") || status_code(resp_cfg) != 200) {
+    return("❌ No se pudo leer el config.json")
+  }
+  
+  config_json <- content(resp_cfg, "text", encoding = "UTF-8")
+  config <- fromJSON(config_json)
+  
+  # Paso 2: Construir URL completa del recurso
+  base_url <- config$apiEndpoint
+  full_url <- paste0(rtrim_slash(base_url), "/", ltrim_slash(path))
+  
+  # Paso 3: Hacer el request
+  resp <- try(GET(full_url, add_headers(Authorization = token)), silent = TRUE)
+  if (inherits(resp, "try-error")) return("❌ Error de conexión")
+  
+  status <- status_code(resp)
+  
+  if (status == 200) {
+    return(paste("✅ OK:", path))
+  } else if (status %in% c(401, 403)) {
+    return(paste("❌ Token inválido o expirado:", path))
+  } else {
+    return(paste("⚠️ Error", status, "en", path))
+  }
+}
+
+# Funciones helper para limpiar barras extra
+rtrim_slash <- function(x) sub("/+$", "", x)
+ltrim_slash <- function(x) sub("^/+", "", x)
+
+token <- "Bearer eyJ4NXQiOiJOakEwTVRZeU1qZGtPV1kyT1dFek56QmxObVV4TkRVeVpESm1OMk0zT0dSaVpqSXhOV1ExWmciLCJraWQiOiJOakEwTVRZeU1qZGtPV1kyT1dFek56QmxObVV4TkRVeVpESm1OMk0zT0dSaVpqSXhOV1ExWmciLCJhbGciOiJSUzI1NiJ9.eyJhdF9oYXNoIjoia0hlbXphVFV3SlBTTjFDMXZyc1NRUSIsInN1YiI6ImltNDQ0NTI4NSIsImFtciI6WyJTQU1MU1NPQXV0aGVudGljYXRvciJdLCJpc3MiOiJodHRwczpcL1wvaWgubW9udGV2aWRlby5ndWIudXk6NDQzXC9vYXV0aDJcL3Rva2VuIiwiZ3JvdXBzIjpbIlNPX0dPTF9BQ0NFU08iLCJMSU1QSUVaQV9HRVNUSU9OX09QRVJBVElWQSIsIkludGVybmFsXC9ldmVyeW9uZSJdLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJOaWNvbGFzIExpb3R0aSIsImdpdmVuX25hbWUiOiJOaWNvbGFzIiwibm9uY2UiOiJlMmM1YzgxMGVjNjdjNTY2Y2Q1NTU5NTBiNWJmYzBmZWQyUVN0aDhlcSIsInNpZCI6ImM3NzMyMGZlLWIzNjItNGE5Zi1hYWZjLThmY2ZiNTQyMzE2NyIsImF1ZCI6Im9QYWxvcllxMDE3ek1qaHA4T0RlTV9iRWZvb2EiLCJjX2hhc2giOiIzSk1GZ1RobjR4VFRuZW95d1hzTlB3IiwibmJmIjoxNzUzOTAyMzc2LCJhenAiOiJvUGFsb3JZcTAxN3pNamhwOE9EZU1fYkVmb29hIiwiZXhwIjoxNzUzOTA1OTc2LCJpYXQiOjE3NTM5MDIzNzYsIk11bHRpQXR0cmlidXRlU2VwYXJhdG9yIjpbXSwiZmFtaWx5X25hbWUiOiJMaW90dGkifQ.h9NhptTLS1c0NTeHhTw_Z0XGE4vCwEm4_u19DkJzKfOosPFi9x5oMmM_IH5gzuQUaBaZTUPgxhR_Uhz6hz6u5OT7yba0Ybi2eTxIVlTbC3EVYID8X-24X-vmFE5aySBTzTfgk2T3ulCkSzpa5BSMIC900yLfITdMR_yYyRc9oksnD8VfKzrqbeQqaKA5GSsscpo1mO3bc5VBswq1x98Yp6ljlVI-BCsJl98_TnwCdxQNuI2_5IPc-P23Fq_Tbv-asw_BGQxppo7TYd85XHZLnqDlEQx7-k1cPvGnIVp7nAnq-hXyTw0TcuXRaiPOh4SGORYRG4DJOim2gWrDdsVHwA"  # Pegá tu token real
+
+verificar_endpoint_desde_config("visualizador/contenedores/estado", token)
+verificar_endpoint_desde_config("oficina/2/turno", token)
 
 
 
+obtener_json_desde_config <- function(path, token, config_url = "https://intranet.imm.gub.uy/app/limpieza-gestion-operativa/assets/config/config.json") {
+  
+  # Leer config.json
+  resp_cfg <- try(GET(config_url), silent = TRUE)
+  if (inherits(resp_cfg, "try-error") || status_code(resp_cfg) != 200) {
+    stop("❌ No se pudo leer el config.json")
+  }
+  
+  config_json <- content(resp_cfg, "text", encoding = "UTF-8")
+  config <- fromJSON(config_json)
+  
+  # Construir URL completa
+  base_url <- config$apiEndpoint
+  full_url <- paste0(rtrim_slash(base_url), "/", ltrim_slash(path))
+  
+  # Hacer GET con token
+  resp <- GET(full_url, add_headers(Authorization = token))
+  stop_for_status(resp)  # lanza error si no es 200
+  
+  # Parsear JSON crudo
+  txt <- content(resp, "text", encoding = "UTF-8")
+  json_raw <- fromJSON(txt, simplifyVector = FALSE)
+  
+  return(json_raw)
+}
+
+token <- "Bearer eyJ4NXQiOiJOakEwTVRZeU1qZGtPV1kyT1dFek56QmxObVV4TkRVeVpESm1OMk0zT0dSaVpqSXhOV1ExWmciLCJraWQiOiJOakEwTVRZeU1qZGtPV1kyT1dFek56QmxObVV4TkRVeVpESm1OMk0zT0dSaVpqSXhOV1ExWmciLCJhbGciOiJSUzI1NiJ9.eyJhdF9oYXNoIjoia0hlbXphVFV3SlBTTjFDMXZyc1NRUSIsInN1YiI6ImltNDQ0NTI4NSIsImFtciI6WyJTQU1MU1NPQXV0aGVudGljYXRvciJdLCJpc3MiOiJodHRwczpcL1wvaWgubW9udGV2aWRlby5ndWIudXk6NDQzXC9vYXV0aDJcL3Rva2VuIiwiZ3JvdXBzIjpbIlNPX0dPTF9BQ0NFU08iLCJMSU1QSUVaQV9HRVNUSU9OX09QRVJBVElWQSIsIkludGVybmFsXC9ldmVyeW9uZSJdLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJOaWNvbGFzIExpb3R0aSIsImdpdmVuX25hbWUiOiJOaWNvbGFzIiwibm9uY2UiOiJlMmM1YzgxMGVjNjdjNTY2Y2Q1NTU5NTBiNWJmYzBmZWQyUVN0aDhlcSIsInNpZCI6ImM3NzMyMGZlLWIzNjItNGE5Zi1hYWZjLThmY2ZiNTQyMzE2NyIsImF1ZCI6Im9QYWxvcllxMDE3ek1qaHA4T0RlTV9iRWZvb2EiLCJjX2hhc2giOiIzSk1GZ1RobjR4VFRuZW95d1hzTlB3IiwibmJmIjoxNzUzOTAyMzc2LCJhenAiOiJvUGFsb3JZcTAxN3pNamhwOE9EZU1fYkVmb29hIiwiZXhwIjoxNzUzOTA1OTc2LCJpYXQiOjE3NTM5MDIzNzYsIk11bHRpQXR0cmlidXRlU2VwYXJhdG9yIjpbXSwiZmFtaWx5X25hbWUiOiJMaW90dGkifQ.h9NhptTLS1c0NTeHhTw_Z0XGE4vCwEm4_u19DkJzKfOosPFi9x5oMmM_IH5gzuQUaBaZTUPgxhR_Uhz6hz6u5OT7yba0Ybi2eTxIVlTbC3EVYID8X-24X-vmFE5aySBTzTfgk2T3ulCkSzpa5BSMIC900yLfITdMR_yYyRc9oksnD8VfKzrqbeQqaKA5GSsscpo1mO3bc5VBswq1x98Yp6ljlVI-BCsJl98_TnwCdxQNuI2_5IPc-P23Fq_Tbv-asw_BGQxppo7TYd85XHZLnqDlEQx7-k1cPvGnIVp7nAnq-hXyTw0TcuXRaiPOh4SGORYRG4DJOim2gWrDdsVHwA"  # Pegá tu token real
+json <- obtener_json_desde_config("visualizador/contenedores/estado", token)
+
+# Si tiene estructura tipo GeoJSON
+features <- json$features
+props <- lapply(features, `[[`, "properties")
+
+# Limpieza de nulos
+props_clean <- lapply(props, function(x) {
+  is_null <- vapply(x, is.null, logical(1))
+  x[is_null] <- NA
+  x
+})
+
+df <- do.call(rbind.data.frame, props_clean)
+
+# ----- fin -----
 
 
+✅ Cómo obtener el token desde el navegador
+Funciona en Chrome, Edge, Brave o Firefox
+🧭 PASO A PASO (Chrome / Edge / Brave)
+Abrí la web de la IMM donde usás el sistema (ej: Gestión Operativa).
 
-# 
-# #---------------------------------------------------------------
-# # Función: guardar_posiciones
-# #
-# # Parámetros:
-# #   consulta      : el string con el nombre de la consulta 
-# #                   (p.ej. "dfr:C_DF_POSICIONES_RECORRIDO_HISTORICO")
-# #   nombre_archivo: nombre base para el archivo RDS donde se guardará 
-# #                   la versión procesada (p.ej. "posiciones_historico")
-# #
-# # Comportamiento:
-# #   1) Si "<nombre_archivo>.rds" NO existe:
-# #       - Descarga y procesa TODO.
-# #       - Añade Fecha_agregado = Sys.Date() a cada fila.
-# #       - Guarda el dataframe completo en "<nombre_archivo>.rds".
-# #       - Devuelve ese dataframe completo.
-# #
-# #   2) Si "<nombre_archivo>.rds" ya existe:
-# #       - Lee la versión anterior desde disco (df_anterior).
-# #       - Descarga y procesa TODO de nuevo (df_actual).
-# #       - Detecta filas nuevas (anti_join por GID).
-# #           · A los registros nuevos les asigna Fecha_agregado = Sys.Date().
-# #       - Concatena df_anterior + df_nuevos (si los hay).
-# #       - **Guarda siempre** el RDS resultante (incluso si no hubo registros nuevos).
-# #       - Devuelve el dataframe completo actualizado.
-# #---------------------------------------------------------------
-# actualizar_posiciones_historico_guardado_forzoso <- function(consulta, nombre_archivo) {
-#   # 1) Ruta al archivo RDS local
-#   archivo_rds <- paste0(nombre_archivo, ".rds")
-#   
-#   # 2) Función interna para descargar y aplicar tu pipeline original,
-#   #    usando mutate(...) en lugar de rows_update()
-#   procesar_df_completo <- function() {
-#     # 2.1) Descargar crudo desde el servidor
-#     df <- funcion_obtener_df_DFR(consulta, nombre_archivo)
-#     
-#     # 2.2) Corregir años "00xx" → "20xx" y convertir a Date
-#     df <- df %>%
-#       mutate(
-#         FECHA_DESDE = if_else(
-#           substr(as.character(FECHA_DESDE), 1, 2) == "00",
-#           sub("^00", "20", as.character(FECHA_DESDE)),
-#           as.character(FECHA_DESDE)
-#         ),
-#         FECHA_HASTA = if_else(
-#           substr(as.character(FECHA_HASTA), 1, 2) == "00",
-#           sub("^00", "20", as.character(FECHA_HASTA)),
-#           as.character(FECHA_HASTA)
-#         ),
-#         FECHA_DESDE = as.Date(FECHA_DESDE, format = "%Y-%m-%d"),
-#         FECHA_HASTA  = as.Date(FECHA_HASTA,  format = "%Y-%m-%d")
-#       ) %>%
-#       # 2.3) Convertir FCREA y FACT a POSIXct
-#       mutate(
-#         FCREA = ymd_hms(FCREA),
-#         FACT  = ymd_hms(FACT)
-#       )
-#     
-#     # 2.4) Filtrar por prefix y número extraído de COD_RECORRIDO
-#     df <- df %>%
-#       mutate(
-#         prefix = sub("^(.*?)_.*$", "\\1", COD_RECORRIDO),
-#         numero = as.numeric(sub(".*_(\\d+)$", "\\1", COD_RECORRIDO))
-#       ) %>%
-#       filter(
-#         prefix %in% c("A","C","D","E","F","G","CH"),
-#         numero >= 100
-#       ) %>%
-#       select(-prefix, -numero)
-#     
-#     # 2.5) Corregir FECHA_HASTA “mal” si es > hoy, usando mutate() + if_else()
-#     hoy <- Sys.Date()
-#     df <- df %>%
-#       mutate(
-#         FECHA_HASTA = if_else(
-#           FECHA_HASTA > hoy,
-#           as.Date(FACT),   # reemplazo por la fecha de FACT
-#           FECHA_HASTA
-#         )
-#       )
-#     
-#     return(df)
-#   }
-#   
-#   # 3) Si NO existe el RDS: primera descarga + guardado
-#   if (!file.exists(archivo_rds)) {
-#     message("No se encontró '", archivo_rds, "'. Descargando y procesando TODO por primera vez...")
-#     
-#     df_completo <- procesar_df_completo()
-#     # 3.1) Asignar Fecha_agregado = Sys.Date() a todas las filas
-#     df_completo <- df_completo %>%
-#       mutate(Fecha_agregado = Sys.Date())
-#     
-#     # 3.2) Guardar el dataframe completo en disco
-#     saveRDS(df_completo, archivo_rds)
-#     
-#     # 3.3) Devolver el dataframe completo
-#     return(df_completo)
-#   }
-#   
-#   # 4) Si el RDS ya existe: siempre descargar, procesar y guardar
-#   message("El archivo existe. Leyendo versión previa ('", archivo_rds, "')...")
-#   df_anterior <- readRDS(archivo_rds)
-#   
-#   message("Descargando y procesando la versión actual nuevamente...")
-#   df_actual <- procesar_df_completo()
-#   
-#   # 4.1) Detectar filas nuevas por GID
-#   df_nuevos <- df_actual %>%
-#     anti_join(df_anterior, by = "GID")
-#   
-#   # 4.2) Si hay filas nuevas, asignar Fecha_agregado = Sys.Date()
-#   if (nrow(df_nuevos) > 0) {
-#     df_nuevos <- df_nuevos %>%
-#       mutate(Fecha_agregado = Sys.Date())
-#     message(nrow(df_nuevos), " registros nuevos encontrados.")
-#   } else {
-#     message("No se encontraron registros nuevos.")
-#   }
-#   
-#   # 4.3) Concatenar df_anterior + df_nuevos (si los hay)
-#   #      Para los existentes, conservamos su Fecha_agregado original (si existía).
-#   #      Si df_nuevos está vacío, bind_rows() no altera nada.
-#   df_completo_actualizado <- bind_rows(df_anterior, df_nuevos)
-#   
-#   # 4.4) **GUARDADO FORZOSO**: siempre sobrescribimos el RDS
-#   saveRDS(df_completo_actualizado, archivo_rds)
-#   message("Archivo '", archivo_rds, "' guardado (forzoso) con ",
-#           nrow(df_completo_actualizado), " filas totales.")
-#   
-#   # 4.5) Devolver siempre el dataframe completo actualizado
-#   return(df_completo_actualizado)
-# }
+Iniciá sesión si no lo hiciste aún.
+
+Presioná F12 o clic derecho → "Inspeccionar".
+
+Andá a la pestaña Network.
+
+Si no ves nada, presioná F5 para refrescar la página.
+
+En el buscador (arriba a la izquierda del panel Network), escribí algo como:
+  
+  nginx
+Copiar
+Editar
+api
+o el nombre del endpoint que sabés que se usa (por ejemplo: turno o contenedores).
+
+Hacé clic en una de las peticiones que aparezcan.
+
+Andá a la pestaña Headers (dentro de ese request).
+
+Bajá hasta la sección Request Headers.
+
+Buscá una línea como esta:
+  
+  makefile
+Copiar
+Editar
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5...
+Copiá TODO el valor del token, desde "Bearer " hasta el final.
+
+🧠 TIP de seguridad:
+  Ese token:
+  
+  Es válido solo por un rato (normalmente entre 15 y 60 minutos).
+
+Solo sirve para tu usuario mientras esté logueado.
+
+No lo compartas con nadie (permite acceso directo a la API).
+
+👇 Pegalo en R así:
+  r
+Copiar
+Editar
+token <- "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...."

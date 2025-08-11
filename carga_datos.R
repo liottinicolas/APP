@@ -80,6 +80,7 @@ historico_llenado <- actualizar_planillas_RDS(
   rutas_llenado$ruta_RDS_datos
 )
 
+
 ## 2. Datos de ubicaciones
 rutas_ubicaciones <- cargar_datos("10393_ubicaciones")
 # Definir globalmente la variable para esta sección

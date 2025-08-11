@@ -693,6 +693,36 @@ funcion_agregar_the_geom_a_faltantes <- function(df_singeom, ubi_completa){
         missing = NA_character_
       )) %>%
       select(-the_geom_asd)
+
+    # Buscar registros con geometría vacía "POINT ()" y asignar geometría por GID
+    registros_con_geom_vacia <- estado_diario_con_thegeom %>%
+      filter(the_geom == "POINT ()" | is.na(the_geom))
+    
+    if(nrow(registros_con_geom_vacia) > 0) {
+      # Obtener geometrías válidas por GID del dataframe original
+      geometrias_por_gid <- df_singeom %>%
+        filter(!is.na(the_geom) & the_geom != "POINT ()") %>%
+        group_by(gid) %>%
+        slice_max(order_by = Fecha, n = 1) %>%
+        select(gid, the_geom) %>%
+        rename(the_geom_valida = the_geom)
+      
+      # Aplicar geometrías válidas a registros con geometría vacía
+      registros_con_geom_vacia_corregida <- registros_con_geom_vacia %>%
+        left_join(geometrias_por_gid, by = "gid") %>%
+        mutate(the_geom = if_else(
+          !is.na(the_geom_valida),
+          the_geom_valida,
+          the_geom,
+          missing = NA_character_
+        )) %>%
+        select(-the_geom_valida)
+      
+      # Reemplazar registros corregidos en el dataframe principal
+      estado_diario_con_thegeom <- estado_diario_con_thegeom %>%
+        filter(!(the_geom == "POINT ()" | is.na(the_geom))) %>%
+        bind_rows(registros_con_geom_vacia_corregida)
+    }
     
     # Combinar con registros que ya tenían geometría
     retorno <- bind_rows(estado_diario_con_thegeom_historico, estado_diario_con_thegeom)

@@ -1,6 +1,8 @@
 library(httr)
 library(xml2)
 
+#################### OBTENER LAS CAPAS Y MOSTRARLAS - HOY 30/07/2025 HAY 279).
+
 listar_capas_wms_con_leer <- function(wms_base, wfs_base) {
   # URLs de Capabilities
   url_wms_cap <- paste0(wms_base, "?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities")
@@ -66,48 +68,12 @@ capas <- listar_capas_wms_con_leer(wms_base, wfs_base)
 print(capas)
 
 
+##############################################################################
+#############################################################################
 
 
-
--------------
-  # 0) Instalar geojsonsf si no lo tienes
-  # install.packages("geojsonsf")
   
-  # 1) Cargar librerías
-  library(httr)
-library(geojsonsf)
-library(sf)
-
-# 2) Parámetros del WFS
-wfs_url  <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-layer    <- "analisisdatos:v_lim_ultlevantes"
-params   <- list(
-  service      = "WFS",
-  version      = "1.0.0",
-  request      = "GetFeature",
-  typeName     = layer,
-  outputFormat = "application/json"
-)
-
-# 3) Descargar el GeoJSON crudo
-resp <- GET(wfs_url, query = params)
-stop_for_status(resp)
-geojson_raw <- content(resp, "raw")
-
-# 4) Guardar a disco (opcional pero útil para cache)
-file_geojson <- "leavA.json"
-writeBin(geojson_raw, file_geojson)
-
-# 5) Leer con geojsonsf para evitar el error de GDAL
-redes_sf <- geojson_sf(file_geojson)
-
-
-
-------------
-  
-  # install.packages(c("httr","geojsonsf","sf"))
-  
-  library(httr)
+library(httr)
 library(geojsonsf)
 library(sf)
 
@@ -151,16 +117,167 @@ leer_capa_geojson <- function(wfs_url, layer, out_file = NULL) {
   return(sf_obj)
 }
 
-# Ejemplo de uso:
+
+### arancamos aca las pruebas
+
+# WFS GLOBAL.
 wfs_url <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
-layer   <- "v_lim_ultlevantes"
 
-mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "ultlevantes.json")
-View(mi_sf)
+## Capa de los limites de los circuitos en poligonos.
+layer   <- "analisisdatos:ad_lim_recorridos"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "lim_recorridos.json")
+
+## Capa de los limites de los circuitos en poligonos con el "ranking".
+layer   <- "analisisdatos:v_ad_lim_recorridos"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "analisisdatos:v_ad_lim_recorridos.json")
 
 
-layer   <- "imm:V_DF_POSICIONES_MAPAWEB2_GEOM"
-mias_sf <- leer_capa_geojson(wfs_url, layer, out_file = "contenedores.json")
+## Capa de ultimos levantes. usar??".
+layer   <- "analisisdatos:v_lim_ultlevantes"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "analisisdatos:v_lim_ultlevantes.json")
+mi_sf <- mi_sf %>%
+  mutate(
+    fecha_pasaje_utc = ymd_hms(fecha_pasaje, tz = "UTC"),
+    fecha_pasaje_uy  = with_tz(fecha_pasaje_utc, tzone = "America/Montevideo"),
+    
+    fecha_real_uy    = fecha_pasaje_uy + dhours(horas_reales),
+    
+    # convertir "ahora" (ej: "01:15:37") a difftime y sumárselo
+    hora_ahora = hms(ahora),
+    fecha_ahora_uy = fecha_pasaje_uy + hora_ahora
+  )
+
+## Capa de ferias.
+layer   <- "geomatica:V_SF_FERIAS_mmap"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "geomatica:V_SF_FERIAS_mmap.json")
+
+
+## Capa de direcciones.
+layer   <- "geomatica:v_sig_accesos_montevideo"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "geomatica:v_sig_accesos_montevideo.json")
+
+## Capa de esquinas
+layer   <- "geomatica:v_sig_cruces_montevideo"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "geomatica:v_sig_cruces_montevideo.json")
+
+## Capa de avenidas
+layer   <- "ide:ide_v_avenidas"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "ide:ide_v_avenidas.json")
+
+########### inicio obras
+
+# obras lineas
+# Obras planificadas en la vía pública, autorizadas por UCCRIU en el correr de los últimos 360 días. Tipo de geometría: LÍNEA
+layer   <- "ide:v_redes_planif_lineasGeom_ultimoAnio"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "ide:v_redes_planif_lineasGeom_ultimoAnio.json")
+
+# obras lineas
+# Obras planificadas en la vía pública, autorizadas por UCCRIU en el correr de los últimos 360 días. Tipo de geometría: PUNTO
+layer   <- "ide:v_redes_planif_puntosGeom_ultimoAnio"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "ide:v_redes_planif_puntosGeom_ultimoAnio.json")
+
+########### fin obras
+
+# Municipios
+layer   <- "imm:sig_municipios"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:sig_municipios.json")
+
+# otro municipio con menos cosas
+layer   <- "geomatica:ide_v_sig_municipios"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "geomatica:ide_v_sig_municipios.json")
+
+# basurales??
+layer   <- "imm:gce_basurales"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:gce_basurales.json")
+
+# Reclamos de limpieza
+layer   <- "V_RE_RECLAMOS_LIMP_PORTAL"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "V_RE_RECLAMOS_LIMP_PORTAL.json")
+mi_sf <- mi_sf %>%
+  mutate(
+    FECHA_INGRESO_RECLAMO = dmy(FECHA_INGRESO_RECLAMO),
+    FECHA_DESDE_EN_ESTADO = dmy(FECHA_DESDE_EN_ESTADO)
+  )
+
+# CIRCUITOS CON DIAS Y POLIGONO DE ZONAS.
+layer   <- "imm:V_DF_ZONAS_REC_TURNO_GEOM"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:V_DF_ZONAS_REC_TURNO_GEOML.json")
+
+
+# CIRCUITOS CON poligonos, fecha de creacion, y gid
+layer   <- "imm:V_DF_ZONA_RECORRIDO_VIGENTE"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:V_DF_ZONA_RECORRIDO_VIGENTE.json")
+
+# PARECE SER LOS PUNTO DE ENTREGA VOLUNTARIO
+layer   <- "imm:V_DF_SEL_DOM_VP_TES"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:V_DF_SEL_DOM_VP_TES.json")
+
+
+# PARECE SER cooperativas (Municipio b y c?)
+layer   <- "imm:V_DF_SEL_DOM_MBC"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:V_DF_SEL_DOM_MBC.json")
+
+# LINEA DE LOS CIRCUITOS.
+layer   <- "V_DF_RUTAS_RECORRIDO"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "V_DF_RUTAS_RECORRIDO.json")
+
+
+### POSICIONES DE LOS CONTENEDORES CON. GID, FECHA DESDE POSICION, OBSERVACIONES, GEOMETRY (SIN DIRECCIÓN)
+layer   <- "imm:V_DF_POSICIONES_RECORRIDO_GEOM"
+mi_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:V_DF_POSICIONES_RECORRIDO_GEOM.json")
+
+imm:V_DF_POSICIONES_MAPAWEB2_GEOM
+
+
+# PARECE SER LOS PUNTO DE ENTREGA VOLUNTARIO
+layer   <- "imm:DF_SELECTIVA_DOMICILIARIA"
+mias_sf <- leer_capa_geojson(wfs_url, layer, out_file = "imm:DF_SELECTIVA_DOMICILIARIA.json")
+
+
+
+
+
+
+
+
+
+
+
+# -------------
+
+### esto lo suplanta la funcion leer_capa_geojson, lo guardo por las dudas.
+
+#   # 0) Instalar geojsonsf si no lo tienes
+#   # install.packages("geojsonsf")
+#   
+#   # 1) Cargar librerías
+#   library(httr)
+# library(geojsonsf)
+# library(sf)
+# 
+# # 2) Parámetros del WFS
+# wfs_url  <- "http://geoserver.montevideo.gub.uy/geoserver/wfs"
+# layer    <- "analisisdatos:v_lim_ultlevantes"
+# params   <- list(
+#   service      = "WFS",
+#   version      = "1.0.0",
+#   request      = "GetFeature",
+#   typeName     = layer,
+#   outputFormat = "application/json"
+# )
+# 
+# # 3) Descargar el GeoJSON crudo
+# resp <- GET(wfs_url, query = params)
+# stop_for_status(resp)
+# geojson_raw <- content(resp, "raw")
+# 
+# # 4) Guardar a disco (opcional pero útil para cache)
+# file_geojson <- "leavA.json"
+# writeBin(geojson_raw, file_geojson)
+# 
+# # 5) Leer con geojsonsf para evitar el error de GDAL
+# redes_sf <- geojson_sf(file_geojson)
+# 
 
 
 

@@ -302,8 +302,11 @@ estadoDiarioUI <- function(id) {
       column(
         width = 12,
         div(
-          style = "width: 95%; margin: 0 auto;",
-          leafletOutput(ns("map")),
+          # Oculto el mapa
+          #style = "width: 95%; margin: 0 auto;",
+          #leafletOutput(ns("map")),
+          style = "width: 95%; margin: 0 auto; text-align: center; padding: 40px; color: #555;",
+          uiOutput(ns("map_placeholder"))
         )
       )
     ),
@@ -598,82 +601,89 @@ estadoDiarioServer <- function(input, output, session) {
     }
   )
   
-  # Mapa
-  output$map <- renderLeaflet({
-    datos <- estado_diario()
-    
-    if (nrow(datos) == 0) {
-      return(
-        leaflet() %>%
-          addTiles() %>%
-          setView(lng = lng_montevideo, lat = lat_montevideo, zoom = 12) %>%
-          addSearchOSM(options = searchOptions(collapsed = FALSE))
-      )
-    }
-    
-    # Separar datos con y sin geometría
-    datos_con_geom <- datos %>% filter(!is.na(the_geom))
-    datos_sin_geom <- datos %>% filter(is.na(the_geom))
-    
-    # Procesar datos con geometría para el mapa
-    datos_mapa <- modificar_coordenadas_paramapa(datos_con_geom) %>%
-      mutate(color = map_chr(Acumulacion, determinar_color_acumulacion))
-    
-    # Crear mapa base
-    mapa <- leaflet() %>%
-      addTiles() %>%
-      addSearchOSM(options = searchOptions(collapsed = FALSE))
-    
-    # Agregar marcadores solo para datos con geometría
-    if (nrow(datos_mapa) > 0) {
-      mapa <- mapa %>%
-        addCircleMarkers(
-          data = datos_mapa,
-          ~lon, ~lat,
-          color = ~color,
-          radius = 5,
-          fillOpacity = 0.8,
-          popup = ~paste(
-            "Direccion: ", Direccion, "<br>",
-            "GID: ", gid, "<br>",
-            "Acumulacion:", Acumulacion, "<br>",
-            "Circuito:", Circuito_corto, "<br>",
-            "Posicion:", Posicion
-          )
-        )
-    }
-    
-    # Agregar mensaje si hay datos sin geometría
-    if (nrow(datos_sin_geom) > 0) {
-      mapa <- mapa %>%
-        addControl(
-          html = paste0(
-            "<div style='background-color: white; padding: 10px; border-radius: 5px;'>",
-            "<strong>Nota:</strong> Hay ", nrow(datos_sin_geom), 
-            " registros sin coordenadas que se muestran en la tabla.",
-            "</div>"
-          ),
-          position = "topright"
-        )
-    }
-    
-    mapa %>%
-      onRender("
-        function(el, x) {
-          var map = this;
-          function updateCircleMarkerSize() {
-            var zoom = map.getZoom();
-            map.eachLayer(function(layer) {
-              if (layer instanceof L.CircleMarker) {
-                var newRadius = zoom * 0.1;
-                layer.setRadius(newRadius);
-              }
-            });
-          }
-          map.on('zoomend', updateCircleMarkerSize);
-          updateCircleMarkerSize();
-        }
-      ")
+  # # Mapa
+  # output$map <- renderLeaflet({
+  #   datos <- estado_diario()
+  #   
+  #   if (nrow(datos) == 0) {
+  #     return(
+  #       leaflet() %>%
+  #         addTiles() %>%
+  #         setView(lng = lng_montevideo, lat = lat_montevideo, zoom = 12) %>%
+  #         addSearchOSM(options = searchOptions(collapsed = FALSE))
+  #     )
+  #   }
+  #   
+  #   # Separar datos con y sin geometría
+  #   datos_con_geom <- datos %>% filter(!is.na(the_geom))
+  #   datos_sin_geom <- datos %>% filter(is.na(the_geom))
+  #   
+  #   # Procesar datos con geometría para el mapa
+  #   datos_mapa <- modificar_coordenadas_paramapa(datos_con_geom) %>%
+  #     mutate(color = map_chr(Acumulacion, determinar_color_acumulacion))
+  #   
+  #   # Crear mapa base
+  #   mapa <- leaflet() %>%
+  #     addTiles() %>%
+  #     addSearchOSM(options = searchOptions(collapsed = FALSE))
+  #   
+  #   # Agregar marcadores solo para datos con geometría
+  #   if (nrow(datos_mapa) > 0) {
+  #     mapa <- mapa %>%
+  #       addCircleMarkers(
+  #         data = datos_mapa,
+  #         ~lon, ~lat,
+  #         color = ~color,
+  #         radius = 5,
+  #         fillOpacity = 0.8,
+  #         popup = ~paste(
+  #           "Direccion: ", Direccion, "<br>",
+  #           "GID: ", gid, "<br>",
+  #           "Acumulacion:", Acumulacion, "<br>",
+  #           "Circuito:", Circuito_corto, "<br>",
+  #           "Posicion:", Posicion
+  #         )
+  #       )
+  #   }
+  #   
+  #   # Agregar mensaje si hay datos sin geometría
+  #   if (nrow(datos_sin_geom) > 0) {
+  #     mapa <- mapa %>%
+  #       addControl(
+  #         html = paste0(
+  #           "<div style='background-color: white; padding: 10px; border-radius: 5px;'>",
+  #           "<strong>Nota:</strong> Hay ", nrow(datos_sin_geom), 
+  #           " registros sin coordenadas que se muestran en la tabla.",
+  #           "</div>"
+  #         ),
+  #         position = "topright"
+  #       )
+  #   }
+  #   
+  #   mapa %>%
+  #     onRender("
+  #       function(el, x) {
+  #         var map = this;
+  #         function updateCircleMarkerSize() {
+  #           var zoom = map.getZoom();
+  #           map.eachLayer(function(layer) {
+  #             if (layer instanceof L.CircleMarker) {
+  #               var newRadius = zoom * 0.1;
+  #               layer.setRadius(newRadius);
+  #             }
+  #           });
+  #         }
+  #         map.on('zoomend', updateCircleMarkerSize);
+  #         updateCircleMarkerSize();
+  #       }
+  #     ")
+  # })
+  
+  output$map_placeholder <- renderUI({
+    div(
+      style = "font-size: 20px; color: #dc3545; font-weight: bold;",
+      "Mapa en mantenimiento"
+    )
   })
 }
 

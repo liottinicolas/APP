@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Incidencias - Montevideo</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@observablehq/stdlib"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .chart-title {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Dashboard de Incidencias - Montevideo</h1>
+        
+        <div class="controls">
+            <label for="municipio">Municipio:</label>
+            <select id="municipio">
+                <option value="Todos">Todos</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="CH">CH</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="G">G</option>
+            </select>
+        </div>
+
+        <div id="loading" class="loading">Cargando datos...</div>
+        
+        <div id="dashboard" style="display: none;">
+            <div class="stats-grid" id="stats"></div>
+            
+            <div class="chart-container">
+                <div class="chart-title">Contenedores por Circuito</div>
+                <div id="bubble-chart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">Tipos de Incidencias</div>
+                <div id="bar-chart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">Distribución por Municipio</div>
+                <div id="pie-chart"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title">Contenedores con Incidencias</div>
+                <div id="table-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let contenedores = [];
+        let contenedoresFiltrados = [];
+
+        // Cargar datos
+        async function cargarDatos() {
+            try {
+                const response = await fetch('contenedores.json');
+                const data = await response.json();
+                
+                contenedores = data.features.map(f => ({
+                    gid: f.properties.GID,
+                    circuito: f.properties.COD_RECORRIDO,
+                    municipio: f.properties.COD_RECORRIDO.split('_')[0],
+                    posicion: f.properties.POSICION,
+                    ultimo_levante: f.properties.ULTIMO_LEVANTE,
+                    motivo: f.properties.MOTIVO,
+                    coordenadas: f.geometry.coordinates
+                }));
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                
+                actualizarDashboard();
+            } catch (error) {
+                console.error('Error cargando datos:', error);
+                document.getElementById('loading').innerHTML = 'Error cargando datos. Verifica que el archivo contenedores.json esté en el mismo directorio.';
+            }
+        }
+
+        // Filtrar datos por municipio
+        function filtrarDatos() {
+            const municipio = document.getElementById('municipio').value;
+            contenedoresFiltrados = municipio === 'Todos' 
+                ? contenedores 
+                : contenedores.filter(c => c.municipio === municipio);
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            const total = contenedoresFiltrados.length;
+            const conIncidencias = contenedoresFiltrados.filter(c => c.motivo && c.motivo.trim() !== '').length;
+            const porcentaje = total > 0 ? ((conIncidencias / total) * 100).toFixed(1) : 0;
+            
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-value">${total.toLocaleString()}</div>
+                    <div class="stat-label">Total Contenedores</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${conIncidencias.toLocaleString()}</div>
+                    <div class="stat-label">Con Incidencias</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${porcentaje}%</div>
+                    <div class="stat-label">% Incidencias</div>
+                </div>
+            `;
+            
+            document.getElementById('stats').innerHTML = statsHtml;
+        }
+
+        // Gráfico de burbujas
+        function crearGraficoBurbujas() {
+            const contenedoresPorCircuito = d3.rollup(
+                contenedoresFiltrados,
+                v => v.length,
+                d => d.circuito
+            );
+
+            const datosBurbujas = Array.from(contenedoresPorCircuito, ([circuito, cantidad]) => ({
+                circuito: circuito,
+                cantidad: cantidad,
+                municipio: circuito.split('_')[0]
+            }));
+
+            const width = 800;
+            const height = 400;
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            const size = d3.scaleSqrt()
+                .domain([0, d3.max(datosBurbujas, d => d.cantidad)])
+                .range([10, 40]);
+
+            // Limpiar contenedor
+            d3.select('#bubble-chart').selectAll('*').remove();
+
+            const svg = d3.select('#bubble-chart')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', '#f8f9fa');
+
+            // Agregar burbujas
+            svg.selectAll('circle')
+                .data(datosBurbujas)
+                .join('circle')
+                .attr('cx', (d, i) => 100 + (i % 8) * 80)
+                .attr('cy', (d, i) => 100 + Math.floor(i / 8) * 60)
+                .attr('r', d => size(d.cantidad))
+                .attr('fill', d => color(d.municipio))
+                .attr('opacity', 0.7)
+                .attr('stroke', '#333')
+                .attr('stroke-width', 1)
+                .append('title')
+                .text(d => `${d.circuito}: ${d.cantidad} contenedores`);
+
+            // Etiquetas
+            svg.selectAll('text')
+                .data(datosBurbujas)
+                .join('text')
+                .attr('x', (d, i) => 100 + (i % 8) * 80)
+                .attr('y', (d, i) => 100 + Math.floor(i / 8) * 60)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.35em')
+                .attr('font-size', '10px')
+                .attr('fill', '#333')
+                .text(d => d.circuito.split('_').pop());
+        }
+
+        // Gráfico de barras
+        function crearGraficoBarras() {
+            const incidenciasPorTipo = d3.rollup(
+                contenedoresFiltrados.filter(c => c.motivo && c.motivo.trim() !== ''),
+                v => v.length,
+                d => d.motivo
+            );
+
+            const datosIncidencias = Array.from(incidenciasPorTipo, ([tipo, cantidad]) => ({
+                tipo: tipo,
+                cantidad: cantidad
+            })).sort((a, b) => b.cantidad - a.cantidad);
+
+            const width = 600;
+            const height = 300;
+            const margin = {top: 20, right: 20, bottom: 80, left: 60};
+
+            // Limpiar contenedor
+            d3.select('#bar-chart').selectAll('*').remove();
+
+            const svg = d3.select('#bar-chart')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', '#f8f9fa');
+
+            const x = d3.scaleBand()
+                .domain(datosIncidencias.map(d => d.tipo))
+                .range([margin.left, width - margin.right])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(datosIncidencias, d => d.cantidad)])
+                .range([height - margin.bottom, margin.top]);
+
+            const g = svg.append('g');
+
+            // Barras
+            g.selectAll('rect')
+                .data(datosIncidencias)
+                .join('rect')
+                .attr('x', d => x(d.tipo))
+                .attr('y', d => y(d.cantidad))
+                .attr('width', x.bandwidth())
+                .attr('height', d => height - margin.bottom - y(d.cantidad))
+                .attr('fill', '#4CAF50')
+                .attr('opacity', 0.8);
+
+            // Eje X
+            g.append('g')
+                .attr('transform', `translate(0,${height - margin.bottom})`)
+                .call(d3.axisBottom(x))
+                .selectAll('text')
+                .attr('transform', 'rotate(-45)')
+                .style('text-anchor', 'end')
+                .attr('font-size', '10px');
+
+            // Eje Y
+            g.append('g')
+                .attr('transform', `translate(${margin.left},0)`)
+                .call(d3.axisLeft(y));
+        }
+
+        // Gráfico de dona
+        function crearGraficoDona() {
+            const distribucionMunicipio = d3.rollup(
+                contenedoresFiltrados,
+                v => v.length,
+                d => d.municipio
+            );
+
+            const datosMunicipio = Array.from(distribucionMunicipio, ([municipio, cantidad]) => ({
+                municipio: municipio,
+                cantidad: cantidad
+            })).sort((a, b) => b.cantidad - a.cantidad);
+
+            const width = 400;
+            const height = 400;
+            const radius = Math.min(width, height) / 2 - 40;
+
+            // Limpiar contenedor
+            d3.select('#pie-chart').selectAll('*').remove();
+
+            const svg = d3.select('#pie-chart')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .style('background', '#f8f9fa');
+
+            const pie = d3.pie().value(d => d.cantidad);
+            const arc = d3.arc()
+                .innerRadius(radius * 0.4)
+                .outerRadius(radius);
+
+            const color = d3.scaleOrdinal(d3.schemeSet3);
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2},${height/2})`);
+
+            // Arcos
+            g.selectAll('path')
+                .data(pie(datosMunicipio))
+                .join('path')
+                .attr('d', arc)
+                .attr('fill', (d, i) => color(i))
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2);
+
+            // Leyenda
+            const legend = svg.append('g')
+                .attr('transform', `translate(${width - 100}, 20)`);
+
+            legend.selectAll('rect')
+                .data(datosMunicipio)
+                .join('rect')
+                .attr('x', 0)
+                .attr('y', (d, i) => i * 20)
+                .attr('width', 15)
+                .attr('height', 15)
+                .attr('fill', (d, i) => color(i));
+
+            legend.selectAll('text')
+                .data(datosMunicipio)
+                .join('text')
+                .attr('x', 20)
+                .attr('y', (d, i) => i * 20 + 12)
+                .attr('font-size', '12px')
+                .text(d => `${d.municipio}: ${d.cantidad}`);
+        }
+
+        // Tabla de contenedores
+        function crearTabla() {
+            const contenedoresIncidencias = contenedoresFiltrados
+                .filter(c => c.motivo && c.motivo.trim() !== '')
+                .map(c => ({
+                    GID: c.gid,
+                    Circuito: c.circuito,
+                    Posición: c.posicion,
+                    'Último Levante': c.ultimo_levante,
+                    Motivo: c.motivo
+                }))
+                .slice(0, 20);
+
+            const tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>GID</th>
+                            <th>Circuito</th>
+                            <th>Posición</th>
+                            <th>Último Levante</th>
+                            <th>Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${contenedoresIncidencias.map(c => `
+                            <tr>
+                                <td>${c.GID}</td>
+                                <td>${c.Circuito}</td>
+                                <td>${c.Posición}</td>
+                                <td>${c['Último Levante']}</td>
+                                <td>${c.Motivo}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('table-container').innerHTML = tableHtml;
+        }
+
+        // Actualizar todo el dashboard
+        function actualizarDashboard() {
+            filtrarDatos();
+            actualizarEstadisticas();
+            crearGraficoBurbujas();
+            crearGraficoBarras();
+            crearGraficoDona();
+            crearTabla();
+        }
+
+        // Event listeners
+        document.getElementById('municipio').addEventListener('change', actualizarDashboard);
+
+        // Inicializar
+        cargarDatos();
+    </script>
+</body>
+</html> 

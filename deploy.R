@@ -31,7 +31,9 @@
                                     "modules/incidencias_pluma.R",
                                     "modules/incidencias_mantenimiento.R",
                                     "modules/incidencias_operativa.R",
-                                    "modules/condicion_contenedor.R"),
+                                    "modules/condicion_contenedor.R",
+                                    "modules/incidencias_diarias.R",
+                                    "modules/reportes_incidencias.R"),
                        appName = "Incidencias_2025")
   
   
