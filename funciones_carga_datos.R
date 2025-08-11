@@ -1,4 +1,5 @@
 #########################################################################################
+
 # Funcion para actualizar los df de las descargas
 actualizar_planillas_RDS <- function(
     ruta_proyecto,                                                     
@@ -101,6 +102,7 @@ actualizar_planillas_RDS <- function(
     historico <- bind_rows(historico, datos_nuevos)
     historico <- historico %>% 
       distinct()
+    
     
     # Guardar el histórico actualizado en el archivo RDS
     saveRDS(historico, file = ruta_RDS_datos)
