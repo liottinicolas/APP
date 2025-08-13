@@ -24,7 +24,7 @@ source("modules/incidencias_diarias.R")
 # ---- UI ----  
 ui <- dashboardPage(
   
-  skin = "green",  # Cambia el color principal del tema
+  skin = "blue",  # Cambia el color principal del tema
   
   dashboardHeader(title = "Incidencias"),
       
