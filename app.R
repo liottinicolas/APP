@@ -7,8 +7,6 @@ source("carga_informacion_web.R")
 source("funciones_para_web.R")
 source("funciones_utiles.R")
 
-#source("carga_BD.R")
-
 # Cargar módulos
 source("modules/estado_diario.R")
 source("modules/busqueda_gid.R")
