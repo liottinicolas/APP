@@ -39,13 +39,15 @@ guarda_posiciones_diarias <- function(consulta,
                                       nombre_archivo,
                                       fecha_inicio   = NULL,
                                       ruta_historico = paste0(nombre_archivo, ".rds")) {
-  
+  print("[DEBUG] INICIO guarda_posiciones_diarias")
+  flush.console()
   ############################## FUNCIONES INTERNAS #############################
   
   
   
   corregir_df_ubicacionesDFR <- function(df_paraarreglar){
-    
+    print("[DEBUG] Entrando a corregir_df_ubicacionesDFR")
+    flush.console()
     df_arreglado <- df_paraarreglar %>% 
       mutate(
         Estado = case_when(
@@ -67,20 +69,23 @@ guarda_posiciones_diarias <- function(consulta,
         Circuito,
         Posicion
       )
-    
+    print("[DEBUG] Saliendo de corregir_df_ubicacionesDFR")
+    flush.console()
     return(df_arreglado)
     
   }
   ##################################################################################
   
   ultima_fecha_registro <- max(historico_llenado$Fecha, na.rm = TRUE)
-  
-  
+  print(paste("[DEBUG] ultima_fecha_registro:", ultima_fecha_registro))
+  flush.console()
   # 0) Asegurar Date
   fecha_fin <- as.Date(ultima_fecha_registro)
   
   # 1) Si no se pasa fecha_inicio, intentar extraer del histórico
   if (is.null(fecha_inicio) && file.exists(ruta_historico)) {
+    print("[DEBUG] Leyendo histórico existente para fecha_inicio")
+    flush.console()
     historico <- readRDS(ruta_historico)
     ultima_fecha <- max(historico$Fecha, na.rm = TRUE)
     fecha_inicio <- ultima_fecha + 1
@@ -95,14 +100,23 @@ guarda_posiciones_diarias <- function(consulta,
   # 3) Si no hay rango válido, salir
   if (fecha_inicio > fecha_fin) {
     message("ℹ️ No hay días nuevos por procesar (", fecha_inicio, " > ", fecha_fin, ").")
+    print("[DEBUG] No hay días nuevos por procesar")
+    flush.console()
     return(historico)
   }
   
   # 4) Generar secuencia de fechas
+  print("[DEBUG] Generando secuencia de fechas")
+  flush.console()
   fechas <- seq.Date(from = fecha_inicio, to = fecha_fin, by = "day")
-  
+  print(fechas)
+  flush.console()
   # 5) Mapear cada fecha y acumular
+  print("[DEBUG] Mapeando fechas y acumulando nuevas posiciones")
+  flush.console()
   nuevas_posiciones <- purrr::map_dfr(fechas, function(fecha) {
+    print(paste("[DEBUG] Procesando fecha:", fecha))
+    flush.console()
     posiciones_dfr <- funcion_obtener_df_DFR(consulta, nombre_archivo) %>%
       dplyr::mutate(GID = as.character(GID)) %>%
       dplyr::rename(Direccion_dfr = DIRECCION)
@@ -129,21 +143,25 @@ guarda_posiciones_diarias <- function(consulta,
       dplyr::select(-Direccion_consulta)
   }) %>%
     dplyr::distinct()
-  
+  print("[DEBUG] Nuevas posiciones generadas")
+  flush.console()
   nuevas_posiciones <- corregir_df_ubicacionesDFR(nuevas_posiciones)
-
+  print("[DEBUG] Nuevas posiciones corregidas")
+  flush.console()
   # 6) Crear o actualizar histórico
   if (!file.exists(ruta_historico)) {
-    saveRDS(nuevas_posiciones, file = ruta_historico)
-    message("📦 Histórico creado en: ", ruta_historico)
+    print("[DEBUG] No existe el archivo histórico, guardando por primera vez")
+    flush.console()
+    saveRDS(nuevas_posiciones, ruta_historico)
     return(nuevas_posiciones)
   } else {
+    print("[DEBUG] Archivo histórico existe, leyendo y actualizando")
+    flush.console()
     historico <- readRDS(ruta_historico)
-    historico_actualizado <- dplyr::bind_rows(nuevas_posiciones,historico) %>%
+    historico <- bind_rows(historico, nuevas_posiciones) %>%
       dplyr::distinct()
-    saveRDS(historico_actualizado, file = ruta_historico)
-    message("🔄 Histórico actualizado en: ", ruta_historico)
-    return(historico_actualizado)
+    saveRDS(historico, ruta_historico)
+    return(historico)
   }
 }
 
@@ -180,15 +198,20 @@ guarda_posiciones_diarias <- function(consulta,
 actualizar_posiciones_historico <- function(consulta, 
                                             nombre_archivo,
                                             ruta_historico = paste0(nombre_archivo, ".rds")) {
+  print("[DEBUG] INICIO actualizar_posiciones_historico")
+  flush.console()
   # 1) Definir la ruta al archivo RDS local
   #archivo_rds <- paste0(nombre_archivo, ".rds")
   
   # 2) Función interna que descarga y aplica TODO tu pipeline original,
   #    reemplazando rows_update() por un mutate(...) con if_else().
   procesar_df_completo <- function() {
+    print("[DEBUG] Entrando a procesar_df_completo")
+    flush.console()
     # 2.1) Descargar crudo desde el servidor
     df <- funcion_obtener_df_DFR(consulta, nombre_archivo)
-    
+    print("[DEBUG] Descargado df de funcion_obtener_df_DFR")
+    flush.console()
     # 2.2) Corregir años "00xx" → "20xx" y convertir a Date
     df <- df %>%
       mutate(
@@ -210,7 +233,8 @@ actualizar_posiciones_historico <- function(consulta,
         FCREA = ymd_hms(FCREA),
         FACT  = ymd_hms(FACT)
       )
-    
+    print("[DEBUG] Fechas corregidas y convertidas")
+    flush.console()
     # 2.4) Filtrar por prefix y número extraído de COD_RECORRIDO
     df <- df %>%
       mutate(
@@ -222,7 +246,8 @@ actualizar_posiciones_historico <- function(consulta,
         numero >= 100
       ) %>%
       select(-prefix, -numero)
-    
+    print("[DEBUG] Filtrado por prefix y numero")
+    flush.console()
     # 2.5) Corregir FECHA_HASTA “mal” si es > hoy, usando mutate() + if_else()
     hoy <- Sys.Date()
     df <- df %>%
@@ -233,56 +258,61 @@ actualizar_posiciones_historico <- function(consulta,
           FECHA_HASTA
         )
       )
-    
+    print("[DEBUG] FECHA_HASTA corregida")
+    flush.console()
     return(df)
   }
   
   # 3) Si NO existe el RDS, primera descarga + guardado
   if (!file.exists(ruta_historico)) {
-    message("No se encontró '", ruta_historico, "'. Descargando y procesando TODO por primera vez...")
-    
+    print("[DEBUG] No existe el archivo histórico, descargando y procesando todo")
+    flush.console()
     df_completo <- procesar_df_completo()
-    # 3.1) Agregar Fecha_agregado = Sys.Date() a todas las filas
+    print("[DEBUG] Dataframe completo procesado")
+    flush.console()
     df_completo <- df_completo %>%
       mutate(Fecha_agregado = Sys.Date()) %>% 
       arrange(desc(FECHA_HASTA),desc(FACT))
-    
-
-    # 3.2) Guardar en disco
+    print("[DEBUG] Dataframe completo con Fecha_agregado")
+    flush.console()
     saveRDS(df_completo, ruta_historico)
-    
-    # 3.3) Devolver el dataframe completo
+    print("[DEBUG] Dataframe guardado en disco")
+    flush.console()
     return(df_completo)
   }
-  
-  # 4) Si el RDS ya existe, sólo buscar diferencias y actualizar si hace falta
-  message("El archivo existe. Leyendo versión previa ('", ruta_historico, "')...")
+  print("[DEBUG] El archivo existe. Leyendo versión previa")
+  flush.console()
   df_anterior <- readRDS(ruta_historico)
-  
-  message("Descargando y procesando la versión actual nuevamente...")
+  print("[DEBUG] Dataframe anterior leído")
+  flush.console()
+  print("[DEBUG] Descargando y procesando la versión actual nuevamente")
+  flush.console()
   df_actual <- procesar_df_completo()
-  
+  print("[DEBUG] Dataframe actual procesado")
+  flush.console()
+  df_nuevos <- df_actual %>%
+    filter(! GID %in% df_anterior$GID)
+  print(paste("[DEBUG] Filas nuevas encontradas:", nrow(df_nuevos)))
+  flush.console()
   # 4.1) Identificar filas nuevas (por GID)
   df_nuevos <- df_actual %>%
     filter(! GID %in% df_anterior$GID)
   
   # 4.2) Si hay filas nuevas, agrego Fecha_agregado y actualizo el RDS
   if (nrow(df_nuevos) > 0) {
-    message(nrow(df_nuevos), " registros nuevos encontrados. Actualizando '", ruta_historico, "'...")
-    
+    print("[DEBUG] Hay filas nuevas, actualizando archivo histórico")
+    flush.console()
     df_nuevos <- df_nuevos %>%
       mutate(Fecha_agregado = Sys.Date())
-    
     df_actualizado <- bind_rows(df_anterior, df_nuevos) %>% 
       arrange(desc(FECHA_HASTA),desc(FACT))
     saveRDS(df_actualizado, ruta_historico)
-      
-    # 4.3) Devolver siempre el dataframe completo actualizado
+    print("[DEBUG] Archivo histórico actualizado y guardado")
+    flush.console()
     return(df_actualizado)
   }
-  
-  # 4.4) Si NO hay filas nuevas, devolver el dataframe completo tal cual estaba
-  message("No hay registros nuevos (por GID). Devolviendo el histórico completo sin cambios.")
+  print("[DEBUG] No hay filas nuevas, devolviendo dataframe anterior")
+  flush.console()
   return(df_anterior)
 }
 
