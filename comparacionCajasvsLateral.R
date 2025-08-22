@@ -1,4 +1,10 @@
-# Función para comparar cajas vs lateral
+# 1. CAJAS VS LATERAL ----
+
+## 1.1 Funciones ----
+
+# Función para comparar cajas vs lateral, el HISTORICO_LLENADO_INCIDENCIAS
+# Post: DEVUELVE dos df, uno con la información de los camiones laterales y otro convencionales.
+# Solamente con aquellos que se levantaron.
 comparar_cajas_vs_lateral <- function(municipio = NULL, fecha_inicio = NULL, fecha_fin = NULL) {
   
   # Crear dataframe manual con solo los Recolector/Compactador
@@ -16,7 +22,7 @@ comparar_cajas_vs_lateral <- function(municipio = NULL, fecha_inicio = NULL, fec
     select(Matricula_formateada)
   
   # Inicializar el dataframe base
-  viajes_comparacion <- historico_completo_llenado_incidencias %>% 
+  viajes_comparacion <- web_historico_completo_llenado_incidencias %>% 
     filter(Levantado == "S")
   
   # Aplicar filtros opcionales
@@ -93,6 +99,46 @@ comparar_cajas_vs_lateral <- function(municipio = NULL, fecha_inicio = NULL, fec
   ))
 }
 
+## Recibe un df agrupado por Id_viaje y retorna el df con la cantidad de contenedores levantados.
+funcion_agregar_total_contenedores_a_levantar_por_IdViaje <- function(df_a_completar) {
+  
+  historico_llenado_limpio <- historico_llenado %>% 
+    distinct(gid, Id_viaje, .keep_all = TRUE)
+  
+  df_conteo <- historico_llenado_limpio %>%
+    filter(Id_viaje %in% df_a_completar$Id_viaje) %>%
+    group_by(Id_viaje) %>%
+    summarise(
+      total_contenedores_para_levantar = n(),
+      .groups = "drop"
+    )
+  # Hacemos left_join para no perder información de df_a_completar
+  df_resultado <- df_a_completar %>%
+    left_join(df_conteo, by = "Id_viaje")
+  
+  return(df_resultado)
+}
+
+## Recibe un df agrupado por Id_viaje y retorna el df con la cantidad de contenedores levantados.
+funcion_agregar_total_contenedores_a_levantar_por_Circuito <- function(df_a_completar) {
+  
+  historico_llenado_limpio <- historico_llenado %>% 
+    distinct(gid, Id_viaje, .keep_all = TRUE)
+  
+  df_conteo <- historico_llenado_limpio %>%
+    filter(Circuito %in% df_a_completar$Circuito) %>%
+    group_by(Fecha,Circuito) %>%
+    summarise(
+      total_contenedores_para_levantar = n(),
+      .groups = "drop"
+    )
+  # Hacemos left_join para no perder información de df_a_completar
+  df_resultado <- df_a_completar %>%
+    left_join(df_conteo, by = "Id_viaje")
+  
+  return(df_resultado)
+}
+
 # Función para agrupar por Id_viaje y sumar contenedores
 agrupar_por_viaje <- function(df_viajes) {
   
@@ -121,7 +167,7 @@ agrupar_por_viaje <- function(df_viajes) {
 
 # Función para agrupar por circuito y sumar contenedores levantados.
 # Los agrupa por día, y turno.
-# df_viajes <- web_historico_completo_llenado_incidencias
+
 agrupar_por_circuito_unico <- function(df_viajes, municipio = NULL) {
   
   # Verificar que el dataframe no esté vacío
@@ -155,7 +201,7 @@ agrupar_por_circuito_unico <- function(df_viajes, municipio = NULL) {
   df_agrupado <- df_agrupado_contenedoresalevantar %>%
     mutate(Circuito = as.character(Circuito),
            Id_viaje = as.integer(Id_viaje)) %>%
-    select(Fecha, Circuito, Id_viaje, Total_contenedores) %>%
+      select(Fecha, Circuito, Id_viaje, Total_contenedores) %>%
     inner_join(
       df_agrupado_contenedoreslevantados %>%
         mutate(Circuito = as.character(Circuito),
@@ -171,7 +217,6 @@ agrupar_por_circuito_unico <- function(df_viajes, municipio = NULL) {
   return(df_agrupado)
 }
 
-
 # df_viajes, es un df con los circuitos separados pero
 # con la cantidad de contenedores levantados.
 AGREGAR_DURACION_POR_CIRCUITO <- function(df_viajes){
@@ -179,7 +224,7 @@ AGREGAR_DURACION_POR_CIRCUITO <- function(df_viajes){
   library(lubridate)
   library(stringr)
   
-  rango_cv <- web_historico_completo_llenado_incidencias %>%
+  rango_cv <- historico_completo_llenado_incidencias %>%
     mutate(
       Circuito = as.character(Circuito) |> str_squish(),
       Id_viaje = suppressWarnings(as.integer(Id_viaje)),
@@ -201,7 +246,7 @@ AGREGAR_DURACION_POR_CIRCUITO <- function(df_viajes){
     select(-any_of(c("inicio","fin","duracion_min"))) %>%
     left_join(rango_cv, by = c("Circuito","Id_viaje")) %>%
     mutate(
-      duracion_min = case_when(
+      duracion_minutos_viaje_app = case_when(
         is.na(inicio) | is.na(fin)      ~ NA_real_,
         fin < inicio                    ~ NA_real_,  # si cruza medianoche raro o datos malos
         TRUE                            ~ as.numeric(difftime(fin, inicio, units = "mins"))
@@ -212,6 +257,50 @@ AGREGAR_DURACION_POR_CIRCUITO <- function(df_viajes){
   return(retorno)
 }
 
+# Funcion que calcula el promedio del total de contenedores.
+bench_promedio_total_desde_ubicaciones <- function(ub,
+                                                   fecha_desde = NULL,
+                                                   fecha_hasta = NULL,
+                                                   id_col = "gid",
+                                                   metrica = c("median","mean")) {
+  metrica <- match.arg(metrica)
+  
+  ub2 <- ub %>%
+    mutate(Fecha = as.Date(Fecha)) %>%
+    { if (!is.null(fecha_desde)) filter(., Fecha >= as.Date(fecha_desde)) else . } %>%
+    { if (!is.null(fecha_hasta)) filter(., Fecha <= as.Date(fecha_hasta)) else . }
+  
+  # total diario por circuito (cuenta contenedores únicos)
+  diario <- ub2 %>%
+    group_by(Fecha, Circuito) %>%
+    summarise(total_dia = n_distinct(.data[[id_col]]), .groups = "drop")
+  
+  # benchmark por circuito
+  bench <- diario %>%
+    group_by(Circuito) %>%
+    summarise(
+      prom_total = if (metrica == "median") median(total_dia, na.rm = TRUE) else mean(total_dia, na.rm = TRUE),
+      n_dias     = n(),
+      min_total  = min(total_dia, na.rm = TRUE),
+      max_total  = max(total_dia, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  bench
+}
+# USO
+# 1) Todo el histórico (sin filtro de fecha), usando mediana (robusta)
+#bench <- bench_promedio_total_desde_ubicaciones(web_historico_ubicaciones, metrica = "median")
+# 2) Con filtro de fechas
+# bench_2024 <- bench_promedio_total_desde_ubicaciones(
+#   web_historico_ubicaciones,
+#   fecha_desde = "2024-01-01",
+#   fecha_hasta = "2024-12-31",
+#   metrica = "median"
+# )
+
+
+## 1.2 CH Ejemplo ---- 
 ch_unicos <- agrupar_por_circuito_unico(df_viajes, municipio = "CH")
 ch_unicos <- AGREGAR_DURACION_POR_CIRCUITO(ch_unicos)
 
@@ -222,7 +311,59 @@ ch_filtrado <- ch_unicos %>%
   filter(between(circuito_num, 101, 109)) %>% 
   select(-circuito_num)
 
+bench <- bench_promedio_total_desde_ubicaciones(web_historico_ubicaciones, metrica = "median")
 
+ch_con_prom <- ch_filtrado %>%
+  left_join(bench %>% select(Circuito, prom_total), by = "Circuito") %>%
+  rename(Promedio_total_circuitos = prom_total) %>%
+  relocate(Promedio_total_circuitos, .after = Total_contenedores)
+
+ch_90 <- ch_con_prom %>%
+  filter(is.na(Promedio_total_circuitos) |
+           Contenedores_levantados >= 0.9 * Promedio_total_circuitos)
+
+
+ch_90 <- ch_90 %>% 
+  mutate(
+    mpc = duracion_minutos_viaje_app / Contenedores_levantados  # nuevo: razón a auditar
+  ) %>% 
+  filter(mpc > 0)
+
+prom_circuito_ext <- ch_90 %>%
+  group_by(Circuito) %>%
+  summarise(
+    n_viajes              = n(),
+    # tiempos (min)
+    promedio_min          = mean(duracion_minutos_viaje_app, na.rm = TRUE),
+    mediana_min           = median(duracion_minutos_viaje_app, na.rm = TRUE),
+    
+    # contenedores
+    promedio_contenedores = mean(Contenedores_levantados, na.rm = TRUE),
+    mediana_contenedores  = median(Contenedores_levantados, na.rm = TRUE),
+    
+    # mpc (ya lo tenés en ch_90)
+    promedio_mpc          = mean(mpc, na.rm = TRUE),
+    mediana_mpc           = median(mpc, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # pasar a horas
+    promedio_hs = promedio_min / 60,
+    mediana_hs  = mediana_min  / 60
+  ) %>%
+  # redondeos prolijos (sin el warning de dplyr 1.1+)
+  mutate(
+    across(c(promedio_min, mediana_min, promedio_contenedores, mediana_contenedores),
+           \(x) round(x, 1)),
+    across(c(promedio_hs, mediana_hs, promedio_mpc, mediana_mpc),
+           \(x) round(x, 2))
+  )
+
+library(writexl)
+
+write_xlsx(prom_circuito_ext, "prom_circuito_ext.xlsx")
+
+# FIN Detectar inconsistencias ----
 
 ### CH ----
 
@@ -231,12 +372,11 @@ resultado_ch <- comparar_cajas_vs_lateral(municipio = "CH")
 caja_desmontable_ch <- resultado_ch$caja_desmontable
 convencional_ch <- resultado_ch$convencional
 
-agrupado_convencional_ch <- agrupar_por_viaje(convencional_ch)
-cajaDesmontable_ch <- resultado_ch$caja_desmontable
 
+agrupado_convencional_ch <- agrupar_por_viaje(convencional_ch)
 agrupado_caja_desmontable_ch <- agrupar_por_viaje(cajaDesmontable_ch)
 
-### G
+### G  ----
 
 resultado_g <- comparar_cajas_vs_lateral(municipio = "G")
 
@@ -324,7 +464,6 @@ caja_desmontable_ch <- resultado_ch$caja_desmontable
 convencional_ch <- resultado_ch$convencional
 
 
-###############
 
 ---- #### HORAS EN APP ----
 
@@ -335,7 +474,7 @@ caja_desmontable_ch_tiempos_app <- caja_desmontable_ch %>%
     max_fecha = max(Fecha_hora_pasaje, na.rm = TRUE),
     diferencia = difftime(max_fecha, min_fecha, units = "mins"),
     cantidad_contenedores = n(),
-    tiempo_por_contenedor = round(as.numeric(diferencia) / cantidad_contenedores, 0)
+    tiempo_por_contenedor = round(as.numeric(diferencia) / cantidad_contenedores, 1)
   ) %>%
   ungroup() %>%
   filter(as.numeric(diferencia) <= 480)  # solo viajes con menos de 8h de diferencia
@@ -418,3 +557,15 @@ promedios_convencional <- convencional_ch_tiempos %>%
     promedio_contenedores = mean(cantidad_contenedores, na.rm = TRUE),
     promedio_tiempo_por_contenedor = mean(tiempo_por_contenedor, na.rm = TRUE)
   )
+
+
+
+
+
+
+
+
+
+
+
+

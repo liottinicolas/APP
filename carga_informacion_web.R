@@ -3,8 +3,8 @@
 library(magrittr)
 
   
-  ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
-  
+  ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario_reducido.rds")
+    
   # Verificar si el archivo existe antes de cargarlo
   if (!file.exists(ruta_RDS_datos)) {
     warning("Archivo no encontrado: ", ruta_RDS_datos)
@@ -13,7 +13,7 @@ library(magrittr)
     web_historico_estado_diario <- read_rds(ruta_RDS_datos)
   }
   
-  ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/historico_llenado_completo.rds")
+  ruta_RDS_llenado_completo <- file.path(ruta_proyecto, "scripts/llenado_completo/historico_llenado_completo_reducido.rds")
   
   # Verificar si el archivo existe antes de cargarlo
   if (!file.exists(ruta_RDS_llenado_completo)) {
@@ -23,7 +23,7 @@ library(magrittr)
     web_historico_completo_llenado_incidencias <- read_rds(ruta_RDS_llenado_completo)
   }
   
-  ruta_RDS_historico_ubicaciones <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_ubicaciones.rds")
+  ruta_RDS_historico_ubicaciones <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_ubicaciones_reducido.rds")
   
   # Verificar si el archivo existe antes de cargarlo
   if (!file.exists(ruta_RDS_historico_ubicaciones)) {

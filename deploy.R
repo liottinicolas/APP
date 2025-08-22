@@ -1,11 +1,50 @@
   source("carga_BD.R")
   
+  
+  ############### APP SENCILLA
+  
+  
   # Configuración del certificado SSL
   options(RCurlOptions = list(
     capath = "cacert.pem",
     ssl.verifypeer = TRUE
   ))
   
+  # Código para desplegar la aplicación
+  # Configura la cuenta (descomenta y rellena con tus datos)
+  rsconnect::setAccountInfo(name = "datoseindicadores",
+                            token = "C9EC0DCFA432ECC14F2438D893828344",
+                            secret = "b6YjR35qtht+AisTyTGAL5T8bZRzg1D+2go+6pPC")
+  
+  # Despliega la aplicación (descomenta esta línea para desplegar)
+  
+  rsconnect::deployApp(appDir = ".",
+                       appFiles = c("app.R","DESCRIPTION", "config.R", "logging.R","global.R",
+                                    "carga_informacion_web.R",
+                                    "funciones_para_web.R",
+                                    "funciones_utiles.R",
+                                    "scripts/estado_diario/historico_estado_diario_reducido.rds",
+                                    "scripts/llenado_completo/historico_llenado_completo_reducido.rds",
+                                    "scripts/db/10393_ubicaciones/ubicaciones_con_thegheom.rds",
+                                    "scripts/db/10393_ubicaciones/historico_ubicaciones_reducido.rds",
+                                    "scripts/para_mapear/circuitos_planificados.rds",
+                                    "modules/estado_diario.R",
+                                    "modules/busqueda_gid.R",
+                                    "modules/reportes_incidencias.R"),
+                       appName = "Incidencias_2025")
+  
+  
+  ############### app completo  
+  
+  
+  # Configuración del certificado SSL
+  options(RCurlOptions = list(
+    capath = "cacert.pem",
+    ssl.verifypeer = TRUE
+  ))
+  
+
+
   # Código para desplegar la aplicación
   # Configura la cuenta (descomenta y rellena con tus datos)
   rsconnect::setAccountInfo(name = "datoseindicadores",
