@@ -213,3 +213,98 @@ df_combinado <- inner_join(
   rotos_llenado,
   by = c("Fecha", "Circuito", "Posicion", "Id_viaje")
 )
+
+
+
+# ARREGLAR PESADAS ----
+library(dplyr)
+library(stringr)
+library(hms)
+library(lubridate)
+
+pesada_2020_2023 <- read_delim("archivos/10450_pesadas/2020_a_2023.csv", 
+                          delim = "\t", escape_double = FALSE, 
+                          col_types = cols(Fecha = col_date(format = "%d/%m/%Y"), 
+                                           Hora = col_time(format = "%H:%M:%S")), 
+                          trim_ws = TRUE)
+
+pesada_2024 <- read_delim("archivos/10450_pesadas/2024.csv", 
+                            delim = "\t", escape_double = FALSE, 
+                            col_types = cols(Fecha = col_date(format = "%d/%m/%Y"), 
+                                             Hora = col_time(format = "%H:%M:%S")), 
+                            trim_ws = TRUE)
+
+prueba_pesada <- rbind(pesada_2020_2023,pesada_2024)
+
+
+prueba_pesada_im <- prueba_pesada %>% 
+  filter(str_detect(Matricula, "^SIM")) 
+
+prueba_pesada_im <- prueba_pesada_im %>%
+  mutate(
+    Id_Turno = case_when(
+      # Turno 3: 22:00 a 05:59
+      Hora >= as_hms("22:00:00") | Hora < as_hms("06:00:00") ~ 3,
+      # Turno 1: 06:00 a 13:59
+      Hora >= as_hms("06:00:00") & Hora < as_hms("14:00:00") ~ 1,
+      # Turno 2: 14:00 a 21:59
+      Hora >= as_hms("14:00:00") & Hora < as_hms("22:00:00") ~ 2,
+      # En caso de que haya una hora que no caiga en ninguno de los rangos (opcional)
+      TRUE ~ NA_real_
+    )
+  )
+# Crear la columna Turno según el Id_Turno
+prueba_pesada_im <- prueba_pesada_im %>%
+  mutate(
+    Turno = case_when(
+      Id_Turno == 1 ~ "MATUTINO",
+      Id_Turno == 2 ~ "VESPERTINO",
+      Id_Turno == 3 ~ "NOCTURNO",
+      TRUE ~ "Desconocido"
+    )
+  )
+
+prueba_pesada_im <- prueba_pesada_im %>%
+  relocate(Id_Turno, Turno, .after = Hora)
+
+# Crear la columna Fecha_viaje según la lógica del Id_Turno
+prueba_pesada_im <- prueba_pesada_im %>%
+  mutate(
+    Fecha_viaje = case_when(
+      Id_Turno == 3 ~ Fecha - days(1),  # Restar 1 día si el turno es 3
+      TRUE ~ Fecha                     # Mantener la misma fecha si el turno es 1 o 2
+    )
+  )
+
+# Reorganizar el data frame para que Fecha_viaje quede después de Fecha
+prueba_pesada_im <- prueba_pesada_im %>%
+  relocate(Fecha_viaje, .after = Fecha)
+
+####
+
+prueba_viajes <- historico_viajes_reducido %>% 
+  filter(Fecha == "2025-08-21") %>% 
+  filter((Estado == "Finalizado") | (Estado == "Cerrado")) %>% 
+  filter(Lugar_salida == 50) %>% 
+  filter(Peso_neto <= 0) %>% 
+  filter(Cantidad_levantada > 0)
+
+# Crear dataframe manual con solo los Recolector/Compactador
+datos_vehiculos <- data.frame(
+  Descripción = c("Recolector/Compactador", "Recolector/Compactador", "Recolector/Compactador", 
+                  "Recolector/Compactador", "Recolector/Compactador", "Recolector/Compactador", 
+                  "Recolector/Compactador", "Recolector/Compactador", "Recolector/Compactador", 
+                  "Recolector/Compactador", "Recolector/Compactador", "Recolector/Compactador"),
+  SIM = c(3020, 3021, 3018, 3019, 3022, 3041, 3042, 3043, 3069, 3068, 3067, 3066)
+)
+# Crear dataframe con las matrículas formateadas
+recolectores_compactadores <- datos_vehiculos %>% 
+  mutate(Matricula_formateada = paste0("SIM", SIM)) %>%
+  select(Matricula_formateada)
+
+# Agregar columna de tipo de vehículo
+prueba_viajes <- prueba_viajes %>%
+  mutate(Tipo_vehiculo = case_when(
+    Matricula %in% recolectores_compactadores$Matricula_formateada ~ "CajaDesmontable",
+    TRUE ~ "Convencional"
+  ))
