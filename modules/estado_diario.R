@@ -76,7 +76,8 @@ calcular_estadisticas_diarias <- function(datos, fecha) {
     
     # Verificar que hay datos para la fecha
     datos_dia <- datos %>%
-      filter(Fecha == fecha_filtro)
+      filter(Fecha == fecha_filtro) %>% 
+      filter(!grepl("^B_0[1-7]$", Circuito_corto))
     
     # Si no hay datos, retornar valores en cero
     if (nrow(datos_dia) == 0) {

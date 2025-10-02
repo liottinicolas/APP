@@ -90,8 +90,8 @@ funcion_calcular_ranking_deldia <- function(fecha_consulta, df_informedeldia){
 }
 
 
-fecha_consulta <- as.Date("2025-07-09")
-df_informedeldia <- historico_estado_diario %>% 
+fecha_consulta <- as.Date("2025-09-08")
+df_informedeldia <- web_historico_estado_diario %>% 
   filter(Fecha == fecha_consulta)
 
 asd <- funcion_calcular_ranking_deldia(fecha_consulta,df_informedeldia)

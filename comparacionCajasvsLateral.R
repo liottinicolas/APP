@@ -299,6 +299,8 @@ bench_promedio_total_desde_ubicaciones <- function(ub,
 #   metrica = "median"
 # )
 
+df_viajes <- historico_llenado %>% 
+  filter(Fecha < "2025-09-01")
 
 ## 1.2 CH Ejemplo ---- 
 ch_unicos <- agrupar_por_circuito_unico(df_viajes, municipio = "CH")
@@ -374,7 +376,17 @@ convencional_ch <- resultado_ch$convencional
 
 
 agrupado_convencional_ch <- agrupar_por_viaje(convencional_ch)
-agrupado_caja_desmontable_ch <- agrupar_por_viaje(cajaDesmontable_ch)
+agrupado_caja_desmontable_ch <- agrupar_por_viaje(caja_desmontable_ch)
+
+# Calcular el promedio de contenedores por Id_viaje para cada tipo
+
+promedio_contenedores_convencional <- sum(agrupado_convencional_ch$Total_contenedores) / nrow(agrupado_convencional_ch)
+cat("Promedio de contenedores por Id_viaje (Convencional):", promedio_contenedores_convencional, "\n")
+
+promedio_contenedores_caja_desmontable <- sum(agrupado_caja_desmontable_ch$Total_contenedores) / nrow(agrupado_caja_desmontable_ch)
+cat("Promedio de contenedores por Id_viaje (Caja Desmontable):", promedio_contenedores_caja_desmontable, "\n")
+
+
 
 ### G  ----
 
@@ -395,16 +407,6 @@ promedio_contenedores_caja_desmontable <- sum(agrupado_caja_desmontable_g$Total_
 cat("Promedio de contenedores por Id_viaje (Caja Desmontable):", promedio_contenedores_caja_desmontable, "\n")
 
 
-
-####################
-
-# Calcular el promedio de contenedores por Id_viaje para cada tipo
-
-promedio_contenedores_convencional <- sum(agrupado_convencional_ch$Total_contenedores) / nrow(agrupado_convencional_ch)
-cat("Promedio de contenedores por Id_viaje (Convencional):", promedio_contenedores_convencional, "\n")
-
-promedio_contenedores_caja_desmontable <- sum(agrupado_caja_desmontable_ch$Total_contenedores) / nrow(agrupado_caja_desmontable_ch)
-cat("Promedio de contenedores por Id_viaje (Caja Desmontable):", promedio_contenedores_caja_desmontable, "\n")
 
 
 

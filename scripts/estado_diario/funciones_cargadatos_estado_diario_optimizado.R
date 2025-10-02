@@ -77,28 +77,32 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     inicio_dia_con_modificacion <- ultimo_dia_con_modificacion + 1
     fecha_fin <- max(historico_llenado$Fecha) + 1
     
-    print(paste("Procesando desde", inicio_dia_con_modificacion, "hasta", fecha_fin))
     
     # Verificar si existen nuevas fechas a procesar
     fechas <- sort(unique(ubicaciones$Fecha[ubicaciones$Fecha > ultimo_dia_con_modificacion]))
     
     if(length(fechas) > 0) {
+      
+      print(paste("Procesando desde", inicio_dia_con_modificacion, "hasta", fecha_fin-1))
+      
       print(paste("Se encontraron", length(fechas), "días nuevos para procesar"))
       # Lista para almacenar informes diarios de fechas nuevas
       lista_cambios <- list()
       
       # Procesar cada día nuevo
-      for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin, by = "day")) {
+      for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin-1, by = "day")) {
+        
+        # i <- inicio_dia_con_modificacion
         fecha <- as.Date(i, origin = "1970-01-01")
         
         print(paste("Procesando día:", fecha))
         # Calcular estado diario para esta fecha
         informe_del_dia <- funcion_calcular_estado_diario(fecha)
-        informe_modificado <- funcion_modificar_informe_diario(informe_del_dia)
+        #informe_modificado <- funcion_modificar_informe_diario(informe_del_dia)
         
         # Almacenar informe si tiene contenido
         if(nrow(informe_del_dia) > 0) {
-          lista_cambios[[length(lista_cambios) + 1]] <- informe_modificado
+          lista_cambios[[length(lista_cambios) + 1]] <- informe_del_dia
           print(paste("✓ Día", fecha, "agregado con", nrow(informe_del_dia), "registros"))
         } else {
           print(paste("✗ Día", fecha, "sin registros"))
@@ -107,13 +111,13 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
       
       # Procesar datos nuevos si existen
       if(length(lista_cambios) > 0) {
-        datos_nuevos <- bind_rows(lista_cambios)
+        datos_nuevos <- bind_rows(lista_cambios) 
         
         # Preparar datos nuevos con formato estándar
         estado_diario_datos_nuevos <- agregar_municipio_y_circuitocorto_df(datos_nuevos)
         estado_diario_datos_nuevos <- estado_diario_datos_nuevos %>% 
           select(gid, Circuito, Municipio, Circuito_corto, Posicion, Estado,
-                 Calle, Numero, Observaciones, Fecha, Direccion, Id_viaje,
+                 Calle, Numero, Observaciones, Fecha, Direccion,
                  the_geom, Id_motivo_inactiva, Acumulacion)
         
         # Eliminar posibles duplicados existentes para las mismas fechas
@@ -124,6 +128,8 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
         # Unir el histórico filtrado con los nuevos datos
         estado_diario_global <- bind_rows(estado_diario_filtrado, estado_diario_datos_nuevos)
       }
+    } else {
+      print(paste("No hay días de estado diario para procesar"))
     }
     
   } else {
@@ -131,7 +137,7 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     # Primera ejecución: procesar desde fecha inicial fija
     
     fecha_inicio <- as.Date("2025-02-15")
-    fecha_fin <- max(historico_llenado$Fecha) + 1
+    fecha_fin <- max(historico_llenado$Fecha)
     
     print(paste("Procesando desde", fecha_inicio, "hasta", fecha_fin))
     
@@ -173,15 +179,16 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
     }
   }
   
-  # Completar información geométrica faltante
-  ubis_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
-  estado_diario_global <- funcion_agregar_the_geom_a_faltantes(
-    estado_diario_global,
-    ubis_existentes$ubicaciones_con_thegeom
-  ) %>%
-    distinct(gid, Fecha, .keep_all = TRUE) %>%
-    arrange(Fecha, gid)
-  
+  # # Completar información geométrica faltante
+  # ubis_existentes <- funcion_listar_ubicaciones_unicas_con_thegeom_y_sin_thegeom()
+  # estado_diario_global <- funcion_agregar_the_geom_a_faltantes(
+  #   estado_diario_global,
+  #   ubis_existentes$ubicaciones_con_thegeom
+  # ) %>%
+  #   distinct(gid, Fecha, .keep_all = TRUE) %>%
+  #   arrange(Fecha, gid)
+
+
   # Guardar resultado final
   saveRDS(estado_diario_global, file = ruta_datos)
   
@@ -197,6 +204,8 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
 #' 
 #' @param dia Fecha para la cual se calculará el estado diario
 #' @return Dataframe con el estado diario de los contenedores
+#' 
+#'dia <- fecha
 funcion_calcular_estado_diario <- function(dia){
   
   # Obtener registros de llenado anteriores a la fecha de consulta
@@ -204,7 +213,120 @@ funcion_calcular_estado_diario <- function(dia){
     filter(Fecha < dia)
   
   # Obtener ubicaciones para el día del informe
-  ubicaciones_dia_informe <- funcion_obtener_ubicaciones_por_dia(dia)
+  ubicaciones_dia_informe <- funcion_obtener_ubicaciones_por_dia(dia) 
+  
+  # Calcular días de acumulación desde último levante
+  df_llenadodiario <- llenado_levantado %>%
+    mutate(
+      Acumulacion = if_else(
+        Levantado == "S", 
+        # Días transcurridos desde que fue levantado
+        as.numeric(difftime(dia, Fecha, units = "days")), 
+        NA_real_
+      )
+    )
+  
+  # Filtrar solo contenedores que fueron levantados
+  df_llenadodiario_levantados <- df_llenadodiario %>% 
+    filter(Levantado == "S")
+  
+  # Obtener el último registro de levante para cada contenedor
+  df_llenadodiario_ultimodia <- df_llenadodiario_levantados %>%
+    group_by(gid) %>%
+    slice_max(order_by = Fecha, n = 1) %>%
+    ungroup() %>% 
+    distinct(gid, .keep_all = TRUE)
+  
+  # Unir ubicaciones con datos de último levante y eliminar duplicados
+  historico_ubicaciones_dia_informe <- ubicaciones_dia_informe %>%
+    left_join(
+      df_llenadodiario_ultimodia %>%
+        select(Direccion, Turno_levantado, Fecha_hora_pasaje, Incidencia, 
+               Porcentaje_llenado, Numero_caja, Id_viaje_SDFR,Id_viaje_GOL, the_geom, 
+               Condicion, Id_motivo_inactiva, Acumulacion, gid),
+      by = "gid"
+    ) %>%
+    group_by(Fecha, Circuito_corto, Posicion) %>%
+    mutate(
+      es_unico = n() == 1,
+      Acumulacion = if_else(is.na(Acumulacion) & es_unico, 1, Acumulacion)
+    ) %>%
+    ungroup() %>%
+    select(-es_unico)
+  
+  # Preparar informe diario inicial
+  informe_diario <- historico_ubicaciones_dia_informe
+  
+  # Procesamiento de contenedores agregados recientemente
+  contenedores_agregados <- historico_ubicaciones_cambio_de_estado %>% 
+    filter(Motivo == "Agregado") %>% 
+    filter(Fecha < dia)
+  
+  # Obtener el registro más reciente para cada contenedor agregado
+  contenedores_agregados <- contenedores_agregados %>%
+    group_by(gid) %>%
+    slice_max(Fecha, n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # Calcular días de acumulación para contenedores recién agregados
+  contenedores_agregados <- contenedores_agregados %>% 
+    mutate(Acumulacion = as.numeric(difftime(dia, Fecha, units = "days"))) 
+  
+  # Actualizar acumulación en el informe con info de contenedores recién agregados
+  informe_diario_filtrado <- informe_diario %>%
+    left_join(contenedores_agregados %>% select(gid, Acumulacion),
+              by = "gid", suffix = c("", ".agg")) %>%
+    mutate(Acumulacion = ifelse(!is.na(Acumulacion.agg) & Acumulacion.agg < Acumulacion,
+                                Acumulacion.agg,
+                                Acumulacion)) %>%
+    select(-Acumulacion.agg)
+  
+  # Procesamiento de contenedores activados recientemente
+  contenedores_activos <- historico_ubicaciones_cambio_de_estado %>% 
+    filter(Motivo == "Activo") %>% 
+    filter(Fecha < dia)   
+  
+  # Obtener el registro más reciente para cada contenedor activado
+  contenedores_activos <- contenedores_activos %>%
+    group_by(gid) %>%
+    slice_max(Fecha, n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # Calcular días de acumulación para contenedores recién activados
+  contenedores_activos <- contenedores_activos %>% 
+    mutate(Acumulacion = as.numeric(difftime(dia, Fecha, units = "days")))
+  
+  # Actualizar acumulación y aplicar filtros finales
+  informe_diario_filtrado <- informe_diario_filtrado %>%
+    left_join(contenedores_activos %>% select(gid, Acumulacion),
+              by = "gid", suffix = c("", ".agg")) %>%
+    mutate(Acumulacion = ifelse(!is.na(Acumulacion.agg) & Acumulacion.agg < Acumulacion,
+                                Acumulacion.agg,
+                                Acumulacion)) %>%
+    select(-Acumulacion.agg) %>% 
+    mutate(DB = "Llenado")
+  
+  return(informe_diario_filtrado)
+}
+
+# dia <- fecha
+prueba_funcion_calcular_estado_diario <- function(dia){
+  
+  # Obtener registros de llenado anteriores a la fecha de consulta
+  llenado_levantado <- historico_llenado %>% 
+    filter(Fecha <= dia)
+  
+  # Obtener ubicaciones para el día del informe
+  ubicaciones_dia_informe <- funcion_obtener_ubicaciones_por_dia(dia+1)## arreglar la funcion
+  
+  ### Busco los levantados de el día anterior.
+  estado_diario_ayer <- historico_estado_diario %>% 
+    filter(Fecha == dia-1)
+  
+  solo_levantados <- llenado_levantado %>%
+    filter(Fecha == dia) %>% 
+    filter(Levantado == "S")
+  
   
   # Calcular días de acumulación desde último levante
   df_llenadodiario <- llenado_levantado %>%
@@ -295,8 +417,7 @@ funcion_calcular_estado_diario <- function(dia){
                                 Acumulacion.agg,
                                 Acumulacion)) %>%
     select(-Acumulacion.agg) %>% 
-    mutate(DB = "Llenado") %>% 
-    filter(!grepl("^B_0[1-7]$", Circuito_corto))
+    mutate(DB = "Llenado")
   
   return(informe_diario_filtrado)
 }
@@ -310,6 +431,7 @@ funcion_calcular_estado_diario <- function(dia){
 #' 
 #' @param df_informediario Dataframe con el informe diario a modificar
 #' @return Dataframe con el informe diario actualizado
+#' df_informediario <- informe_del_dia
 funcion_modificar_informe_diario <- function(df_informediario){
   
   # Ruta de archivo para cambios de grúa/pluma sin registro en llenado
@@ -337,6 +459,7 @@ funcion_modificar_informe_diario <- function(df_informediario){
     
     # Actualizar informe con contenedores históricos no levantados
     informe_diario_corregido <- df_informediario %>%
+      mutate(Turno_levantado = as.character(Turno_levantado)) %>% 
       distinct(gid, Fecha, .keep_all = TRUE) %>%
       rows_update(
         contenedores_a_modificar_acumulacion,
@@ -430,6 +553,8 @@ funcion_modificar_informe_diario <- function(df_informediario){
 #' @param fecha_consulta Fecha para la que se consultan los contenedores
 #' @param df_inf_diario Dataframe con el informe diario base
 #' @return Dataframe con contenedores que requieren modificación
+#' fecha_consulta <- dia
+#' df_inf_diario <- df_informediario
 funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_consulta, df_inf_diario){
   
   dia <- fecha_consulta
@@ -441,9 +566,9 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
   # Asignar información de turno y porcentaje de llenado
   contenedores_levantados_por_gruapluma <- contenedores_levantados_por_gruapluma %>%
     mutate(Turno = case_when(
-      Id_turno == 1 ~ "MATUTINO",
-      Id_turno == 2 ~ "VESPERTINO",
-      Id_turno == 3 ~ "NOCTURNO",
+      Id_turno == 1 ~ "Matutino",
+      Id_turno == 2 ~ "Vespertino",
+      Id_turno == 3 ~ "Nocturno",
       TRUE ~ NA_character_
     )) %>%
     mutate(Porcentaje_llenado = 100)
@@ -461,7 +586,7 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
   
   # Seleccionar campos relevantes
   contenedores_levantados_por_gruapluma <- contenedores_levantados_por_gruapluma %>% 
-    select(Fecha, Id_viaje, Circuito_corto, Posicion, DB, Turno, 
+    select(Fecha, Id_viaje_SDFR, Circuito_corto, Posicion, DB, Turno, 
            Porcentaje_llenado, Fecha_hora_pasaje)
   
   # Identificar contenedores que requieren modificación (con acumulación > 1)
@@ -475,10 +600,10 @@ funcion_obtener_df_de_contenedores_a_modificar_acumulacion <- function(fecha_con
   
   # Preparar dataframe final con las modificaciones necesarias
   contenedores_a_modificar_acumulacion <- contenedores_a_modificar_acumulacion %>% 
-    select(gid, Fecha, Acumulacion, Id_viaje.y, DB.y, 
+    select(gid, Fecha, Acumulacion, Id_viaje_SDFR.y, DB.y, 
            Porcentaje_llenado.y, Turno, Fecha_hora_pasaje.y) %>% 
     rename(
-      Id_viaje = Id_viaje.y,
+      Id_viaje_SDFR = Id_viaje_SDFR.y,
       Porcentaje_llenado = Porcentaje_llenado.y,
       Turno_levantado = Turno,
       Fecha_hora_pasaje = Fecha_hora_pasaje.y,

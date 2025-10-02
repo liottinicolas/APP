@@ -1,4 +1,6 @@
 
+##### FILTRAR CONTENEDORES MAL UBICADOS ----
+
 filtrar_contenedores_malubicados <- function(fecha_inicio_fueradelugar,
                                              fecha_fin_fueradelugar,
                                              df_incidencias_completo) {
@@ -40,16 +42,10 @@ filtrar_contenedores_malubicados <- function(fecha_inicio_fueradelugar,
   )
 }
 
-fecha_inicio_fueradelugar <- inicio
-fecha_fin_fueradelugar <- fin
-df_incidencias_completo <- probando_incidencias
-
 
 probando_incidencias <- historico_completo_llenado_incidencias
 inicio <- as.Date("2025-05-01")
 fin <- as.Date("2025-06-12")
-
-
 
 salida <- filtrar_contenedores_malubicados(inicio, fin, probando_incidencias)
 
@@ -61,89 +57,6 @@ total_malubicados   <- salida$total_veces
 
 
 
-tryCatch({
-  
-  ##--- 1. Crear el libro --------
-  wb <- createWorkbook()
-  
-  ##--- 2. Hoja «Resumen» (== resultado) ----------
-  addWorksheet(wb, "Resumen")
-  
-  writeDataTable(
-    wb, sheet = "Resumen",
-    x = total_malubicados,                       # <-- tu data frame resumido
-    tableStyle = "TableStyleLight9"
-  )
-  
-  setColWidths(
-    wb, sheet = "Resumen",
-    cols  = 1:ncol(resultado),
-    widths = "auto"
-  )
-  
-  ## Estilo de fechas (reutilizable)
-  dateStyle <- createStyle(numFmt = "dd/mm/yyyy")
-  
-  # Aplica el estilo si la columna «Fecha» existe en este df
-  if ("Fecha" %in% names(total_malubicados)) {
-    addStyle(
-      wb, sheet = "Resumen", style = dateStyle,
-      cols = which(names(total_malubicados) == "Fecha"),
-      rows = 2:(nrow(total_malubicados) + 1),
-      gridExpand = TRUE
-    )
-  }
-  
-  ##--- 3. Hoja «Filtrado» (== retorno) ----------
-  addWorksheet(wb, "Filtrado")
-  
-  writeDataTable(
-    wb, sheet = "Filtrado",
-    x = historico_malubicados,                         # <-- filas filtradas originales
-    tableStyle = "TableStyleLight9"
-  )
-  
-  setColWidths(
-    wb, sheet = "Filtrado",
-    cols  = 1:ncol(historico_malubicados),
-    widths = "auto"
-  )
-  
-  # Aplica el estilo de fecha también aquí (si corresponde)
-  if ("Fecha" %in% names(historico_malubicados)) {
-    addStyle(
-      wb, sheet = "Filtrado", style = dateStyle,
-      cols = which(names(historico_malubicados) == "Fecha"),
-      rows = 2:(nrow(historico_malubicados) + 1),
-      gridExpand = TRUE
-    )
-  }
-  
-  ##--- 4. Guardar en disco ----------
-  nombre_archivo <- file.path(
-    CONFIGURACION$DIRECTORIO_SALIDA,
-    paste0("contenedores_fuera_de_lugar_entre ",inicio," y ",fin, ".xlsx")
-  )
-  
-  saveWorkbook(wb, file = nombre_archivo, overwrite = TRUE)
-  
-  escribir_log("INFO", paste("Archivo generado:", nombre_archivo))
-  
-}, error = function(e) {
-  manejar_error(e, paste("Error exportando el excel de los mal ubicados"))
-})
-
-
-
-adrian <- historico_estado_diario %>%
-  filter(Municipio == "A") %>% 
-  filter(Fecha >= "2025-07-21") %>% 
-  filter(Fecha <= "2025-07-27") %>% 
-  select(Fecha,gid,Circuito_corto,Posicion,Estado,Direccion,Acumulacion)
-
-adrian[is.na(adrian)] <- ""
-
-write.csv(adrian, "municipio_a_julio.csv", row.names = FALSE, na = "")
 
 
 
@@ -151,10 +64,7 @@ write.csv(adrian, "municipio_a_julio.csv", row.names = FALSE, na = "")
 
 
 
-
-
-
-
+##### PLANILLA PARA ZL DE TEYMA ----
 
 
 library(dplyr)
@@ -165,7 +75,7 @@ library(writexl)
 fecha_objetivo <- as.Date("2025-08-05")
 
 # 🧹 Filtrar histórico por la fecha
-df_filtrado <- web_historico_ubicaciones %>%
+df_filtrado <- historico_ubicaciones %>%
   filter(as.Date(Fecha) == fecha_objetivo)
 
 # 🧮 Contar cuántos contenedores hay por circuito
@@ -194,29 +104,7 @@ write_xlsx(df_expandido, path = "tabla_circuitos_emoji.xlsx")
 
 
 
-
-
-
-# CONTAR CONTENEDORES ROTOS ---- 
-
-asd1 <- historico_incidencias_completas %>% 
-  filter((Fecha> "2025-01-01") & (Fecha<"2025-06-30"))%>% 
-  filter(Id_incidencia == 18)
-
-rotos_llenado <- historico_llenado %>% 
-  filter((Fecha> "2025-01-01") & (Fecha<"2025-06-30")) %>% 
-  filter(str_detect(Condicion, "Requiere Mantenimiento")) %>%  
-  distinct(gid, .keep_all = TRUE)
-
-df_combinado <- inner_join(
-  asd1,
-  rotos_llenado,
-  by = c("Fecha", "Circuito", "Posicion", "Id_viaje")
-)
-
-
-
-# ARREGLAR PESADAS ----
+# ARREGLAR PESADAS PRUEBA ----
 library(dplyr)
 library(stringr)
 library(hms)
@@ -280,14 +168,7 @@ prueba_pesada_im <- prueba_pesada_im %>%
 prueba_pesada_im <- prueba_pesada_im %>%
   relocate(Fecha_viaje, .after = Fecha)
 
-####
-
-prueba_viajes <- historico_viajes_reducido %>% 
-  filter(Fecha == "2025-08-21") %>% 
-  filter((Estado == "Finalizado") | (Estado == "Cerrado")) %>% 
-  filter(Lugar_salida == 50) %>% 
-  filter(Peso_neto <= 0) %>% 
-  filter(Cantidad_levantada > 0)
+#### TIPO VEHÍCULOS POR MATRICULAS ----
 
 # Crear dataframe manual con solo los Recolector/Compactador
 datos_vehiculos <- data.frame(
@@ -308,3 +189,200 @@ prueba_viajes <- prueba_viajes %>%
     Matricula %in% recolectores_compactadores$Matricula_formateada ~ "CajaDesmontable",
     TRUE ~ "Convencional"
   ))
+
+
+
+
+
+
+
+### UBICACIONES, CORRECCIONES ----
+
+ubisccee <- historico_ubicaciones %>% 
+  filter(Fecha == "2025-09-26")
+
+diario <- historico_estado_diario 
+  
+
+ubisdfr <- historico_DFR_ubicaciones %>% 
+  filter(Fecha == "2025-09-26") 
+
+eliminados <- historico_DFR_ubicaciones_DEBAJA %>% 
+  arrange(desc(FACT))
+
+
+elim_last <- eliminados %>%
+  mutate(GID = as.character(GID),
+         FECHA_HASTA = ymd(FECHA_HASTA)) %>%        # ajusta si no es AAAA-MM-DD
+  arrange(GID, desc(FECHA_HASTA)) %>%
+  distinct(GID, .keep_all = TRUE) %>%
+  select(GID, FECHA_HASTA)
+
+historico_estado_diario <- historico_estado_diario %>%
+  mutate(gid = as.character(gid)) %>%
+  left_join(elim_last, by = c("gid" = "GID"))
+
+historico_estado_diario <- historico_estado_diario %>% 
+  filter(is.na(FECHA_HASTA) | Fecha <= FECHA_HASTA)
+
+
+u1 <- ubisccee %>% distinct(gid, .keep_all = TRUE)
+u2 <- ubisdfr  %>% distinct(gid, .keep_all = TRUE)
+
+solo_sccee <- u1 %>% 
+  anti_join(u2 %>% select(gid), by = "gid") %>% 
+  mutate(origen = "solo_sccee")
+
+solo_dfr <- u2 %>% 
+  anti_join(u1 %>% select(gid), by = "gid") %>% 
+  mutate(origen = "solo_dfr")
+
+diferencias_por_gid <- bind_rows(solo_sccee, solo_dfr)
+
+
+#### 
+
+
+
+
+
+
+
+
+contenedor_no_esta <- historico_completo_llenado_incidencias %>%
+  filter(Incidencia == "Contenedor No Está") %>% 
+  group_by(gid) %>% 
+  summarise(Veces = n()) %>% 
+  slice_max(Veces, n = 10) 
+
+ultimas <- historico_ubicaciones %>%
+  group_by(gid) %>%
+  slice_max(Fecha, n = 1, with_ties = FALSE) %>%  # una fila: la de fecha mayor
+  ungroup() %>%
+  select(gid, Circuito, Posicion, Calle, Numero)
+
+contenedor_no_esta_enriq <- contenedor_no_esta %>%
+  left_join(ultimas, by = "gid")
+
+
+contenedor_fueradelugar <- historico_completo_llenado_incidencias %>%
+  filter(grepl("Fuera de Lugar", Condicion)) %>%  
+  group_by(gid) %>% 
+  summarise(Veces = n()) %>% 
+  slice_max(Veces, n = 10) 
+
+ultimas <- historico_ubicaciones %>%
+  group_by(gid) %>%
+  slice_max(Fecha, n = 1, with_ties = FALSE) %>%  # una fila: la de fecha mayor
+  ungroup() %>%
+  select(gid, Circuito, Posicion, Calle, Numero)
+
+contenedor_fueradelugar <- contenedor_fueradelugar %>%
+  left_join(ultimas, by = "gid")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Probar obtener direcciones con ubicacion POINT (1 sola) ----
+
+# install.packages(c("sf","nominatimlite"))  # una vez
+library(sf)
+library(nominatimlite)
+
+pt_utm <- st_sfc(st_point(c(576631, 6143058)), crs = 32721)
+pt_wgs <- st_transform(pt_utm, 4326)
+lonlat <- st_coordinates(pt_wgs)[1,]
+lon <- lonlat[1]; lat <- lonlat[2]
+ 
+
+library(tidygeocoder)
+asd <- reverse_geocode(
+  data.frame(lat = lat, long = lon),
+  lat = lat, long = long,
+  method = "osm", full_results = TRUE
+)
+
+# probando unir
+library(sf); library(dplyr); library(units)
+
+probar <- historico_DFR_ubicaciones %>% 
+  filter(Fecha == "2025-09-29")
+
+reclamos_final_prueba <- reclamos_final %>% 
+  arrange(desc(FECHA_INGRESO_RECLAMO)) %>% 
+  head(2)
+
+x <- st_transform(reclamos_final_prueba, 32721)
+y <- st_transform(probar, 32721)
+
+idx <- st_nearest_feature(x, y)                 # índice del y más cercano
+out <- bind_cols(x, st_drop_geometry(y[idx, ])) # “left join” por cercanía
+
+dist_m <- st_distance(x, y[idx, ], by_element = TRUE) %>% set_units("m") %>% drop_units()
+out$dist_m <- dist_m
+
+
+## Probar obtener direcciones con ubicacion POINT ----
+
+
+
+library(sf)
+library(dplyr)
+library(tidygeocoder)
+
+# sf en UTM 21S -> WGS84
+sf_wgs <- historico_DFR_ubicaciones_DEBAJA |> st_transform(4326)
+coords <- st_coordinates(sf_wgs)
+
+# anclo lon/lat al df y redondeo para joinear sin ruido
+df_all <- sf_wgs |>
+  st_drop_geometry() |>
+  mutate(
+    long = coords[,1],
+    lat  = coords[,2],
+    long_r = round(long, 7),
+    lat_r  = round(lat, 7)
+  )
+
+# coord únicas a geocodificar
+uniq <- df_all |> distinct(long_r, lat_r) |>
+  rename(long = long_r, lat = lat_r)
+
+# reverse geocoding OSM (vectorizado)
+geo_uniq <- reverse_geocode(
+  uniq, lat = lat, long = long,
+  method = "osm", full_results = TRUE
+)
+
+# traer resultados a todas las filas
+geo_all <- df_all |>
+  left_join(geo_uniq, by = c("long_r" = "long", "lat_r" = "lat"))
+
+# armar salida con dirección legible y campos útiles
+ubicaciones_con_direccion <- geo_all |>
+  mutate(
+    direccion = if_else(!is.na(house_number) | !is.na(road),
+                        paste0(coalesce(road, ""), " ", coalesce(house_number, "")),
+                        display_name)
+  ) |>
+  select(
+    id, GID, REGION, COD_RECORRIDO, POSICION, FECHA_DESDE, FECHA_HASTA,
+    OBSERVACIONES, COD_MUNICIPIO,
+    lat, long, direccion, display_name, house_number, road,
+    neighbourhood, suburb, city, town, village, state, postcode, country
+  )
+
+
+ruta_RSD_historico_con_ubicacion <- file.path(ruta_proyecto, "scripts/db/DFR_ubicaciones/historico_DFR_posiciones_DEBAJA_condireccion.rds")
+
+saveRDS(geo_all, ruta_RSD_historico_con_ubicacion)

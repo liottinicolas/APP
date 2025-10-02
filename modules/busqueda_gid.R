@@ -69,7 +69,7 @@ busquedaGidServer <- function(input, output, session) {
           select(circuito_corto, Frecuencia, Periodo),
         by = c("Circuito_corto" = "circuito_corto")
       ) %>%
-      arrange(desc(Fecha),desc(Turno))
+      arrange(desc(Fecha),desc(Turno_levantado))
   })
   
   # Agregar la funcionalidad de descarga
@@ -442,10 +442,10 @@ busquedaGidServer <- function(input, output, session) {
         )
 
       data %>%
-        select(Fecha,Circuito,Posicion,Direccion,Levantado_real,Turno,Fecha_hora_pasaje,Id_viaje,Incidencia,
+        select(Fecha,Circuito,Posicion,Direccion,Levantado_real,Turno_levantado,Fecha_hora_pasaje,Id_viaje_SDFR,Id_viaje_GOL,Incidencia,
                Porcentaje_llenado,Condicion,Estado) %>%
         datatable(
-          colnames = c("Dia","Circuito", "Posicion", "Dirección","Levante", "Turno", "Hora", "ID_Viaje", "Incidencia", "% Llenado", "Condición", "Estado"),
+          colnames = c("Dia","Circuito", "Posicion", "Dirección","Levante", "Turno", "Hora", "ID_Viaje_SDFR" , "ID_Viaje_GOL", "Incidencia", "% Llenado", "Condición", "Estado"),
           filter = "top",
           options = list(lengthMenu = c(10, 25, 50, 100),
                          pageLength = 100,
@@ -459,9 +459,10 @@ busquedaGidServer <- function(input, output, session) {
                            list(targets = 5,className = 'dt-center'), # Turno
                            list(width = '5%', targets = 6,className = 'dt-center'), # Hora
                            list(width = '5%', targets = 7,className = 'dt-center'), # ID_Viaje
-                           list(width = '20%', targets = 8,className = 'dt-center'), #Incidencia
-                           list(width = '5%', targets = 9), # llenado
-                           list(width = '20%',targets = 10,className = 'dt-center'), # Condicion
+                           list(width = '5%', targets = 8,className = 'dt-center'), # ID_Viaje
+                           list(width = '20%', targets = 9,className = 'dt-center'), #Incidencia
+                           list(width = '5%', targets = 10), # llenado
+                           list(width = '15%',targets = 10,className = 'dt-center'), # Condicion
                            list(width = '10%',targets = 11,className = 'dt-center') # Estado
                          )
           ),

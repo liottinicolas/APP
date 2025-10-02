@@ -150,8 +150,60 @@ turnos_planificados_por_circuito <- function(){
   df_final$Fecha_inicio <- as.Date("2024-10-10")
   df_final$FechaFin <- as.Date(NA)
   
+  df_final <- df_final %>% 
+    mutate(
+      Frec_texto = case_when(
+        Frecuencia == 3 ~ "3 veces por semana",
+        Frecuencia == 3.5 ~ "48 horas",
+        Frecuencia == 2.33 ~ "72 horas",
+        Frecuencia == 7 ~ "Diaria",
+      )
+    )
+  
+# 
+#   ## Agregar los días.
+#   
+#   dias_map <- c("L"="lunes","M"="martes","Mi"="miércoles","J"="jueves","V"="viernes","S"="sábado","D"="domingo")
+#   orden <- c("lunes","martes","miércoles","jueves","viernes","sábado","domingo")
+#   
+#   expand_conf <- function(conf) {
+#     x <- str_squish(str_to_lower(conf %||% ""))
+#     if (x == "" || x == "-") return(NA_character_)
+#     if (str_detect(x, "^diario$") || str_detect(x, "48") || str_detect(x, "72")) return("Variable")
+#     toks <- str_split(conf, ",", simplify = TRUE) |> as.vector() |> str_trim()
+#     dias <- dias_map[toks]
+#     dias <- dias[!is.na(dias)]
+#     dias <- intersect(orden, unique(dias))
+#     if (length(dias)==0) NA_character_ else paste(dias, collapse="|")
+#   }
+#   
+#   config_dias <- config %>%
+#     mutate(Dias_recoleccion = map_chr(Conf, expand_conf)) %>%
+#     group_by(Circuito) %>%
+#     summarise(Dias_recoleccion = {
+#       x <- Dias_recoleccion[!is.na(Dias_recoleccion) & Dias_recoleccion != ""]
+#       if (length(x)==0) NA_character_ else x[[1]]
+#     }, .groups="drop")
+#   
+#   pruebacircui2 <- df_final %>%
+#     left_join(config_dias, by = c("cod_recorrido" = "Circuito"))
+#   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   return(df_final)
 }
+
+# borrar
+pruebacircui <- turnos_planificados_por_circuito()
 
 # Función para registrar cambios históricos
 # Si se actualiza la Frecuencia, también se recalcula el Periodo
@@ -251,3 +303,8 @@ datos_circuitos <- cargar_o_crear_circuitos()
 # 
 # 
 # # nolint end
+
+
+# helper: orden y normalización de nombres de día
+orden_dias <- c("lunes","martes","miércoles","jueves","viernes","sábado","domingo")
+

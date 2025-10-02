@@ -1,5 +1,3 @@
-# nolint start: line_length_linter, object_name_linter
-#
 
 # Cargar paquetes necesarios
 library(dplyr)
@@ -7,6 +5,7 @@ library(dplyr)
 # Definir la ruta del proyecto
 ruta_proyecto <- getwd()
 
+## ----
 # Función auxiliar para establecer rutas y cargar datos
 cargar_datos <- function(
   modulo,
@@ -23,6 +22,8 @@ cargar_datos <- function(
       nombre_archivo_funcion <- "viajesEnUnPeriodo"
     } else if (modulo == "10338_incidencias") {
       nombre_archivo_funcion <- "incidencias"
+    } else if(modulo == "GOL_reportes"){
+      nombre_archivo_funcion <- "golReportesDiarios"
     } else {
       nombre_archivo_funcion <- modulo
     }
@@ -38,6 +39,8 @@ cargar_datos <- function(
       nombre_archivo_historico <- "llenado"
     } else if (modulo == "10338_incidencias") {
       nombre_archivo_historico <- "incidencias"
+    } else if(modulo == "GOL_reportes"){
+      nombre_archivo_historico <- "llenadoGol"
     } else {  
       nombre_archivo_historico <- modulo
     }
@@ -69,9 +72,35 @@ cargar_datos <- function(
 
 ## CARGAS PRINCIPALES DE DATOS
 
-## 1. Datos de llenado
-rutas_llenado <- cargar_datos("10484_llenado")
-# Definir globalmente la variable que necesita actualizar_planillas_RDS
+## 1. Datos de llenado ----
+
+# rutas_llenado <- cargar_datos("10484_llenado")
+# # Definir globalmente la variable que necesita actualizar_planillas_RDS
+# ruta_RDS_planillas_procesadas <- rutas_llenado$ruta_RDS_planillas_procesadas
+# historico_llenado <- actualizar_planillas_RDS(
+#   ruta_proyecto, 
+#   rutas_llenado$ruta_funciones, 
+#   rutas_llenado$ruta_carpeta_archivos, 
+#   rutas_llenado$ruta_RDS_datos
+# )
+
+
+# ## Guardo el reducido.
+# rutas_llenado$ruta_RDS_reducido <- file.path(
+#   dirname(rutas_llenado$ruta_RDS_datos),
+#   "historico_llenado_reducido.rds"
+# )
+# rutas_llenado$ruta_RDS_reducido
+# 
+# historico_llenado_reducido <- historico_llenado %>%
+#   filter(Fecha >= max(Fecha) - days(90))
+
+# Guardar el histórico actualizado en el archivo RDS
+# saveRDS(historico_llenado_reducido, file = rutas_llenado$ruta_RDS_reducido)
+
+
+######## LLENADO GOL NUEVO VER
+rutas_llenado <- cargar_datos("GOL_reportes")
 ruta_RDS_planillas_procesadas <- rutas_llenado$ruta_RDS_planillas_procesadas
 historico_llenado <- actualizar_planillas_RDS(
   ruta_proyecto, 
@@ -80,22 +109,49 @@ historico_llenado <- actualizar_planillas_RDS(
   rutas_llenado$ruta_RDS_datos
 )
 
+# 
+# ### TODO arreglar que sea un solo llenado.
+# 
+# rutas_llenado <- cargar_datos("10484_llenado")
+# ruta_RDS_planillas_procesadas <- rutas_llenado$ruta_RDS_planillas_procesadas
+# ruta_RDS_datos <- rutas_llenado$ruta_RDS_datos
+# historico_llenado_CCEE <- readRDS(ruta_RDS_datos)
+# 
+# historico_llenado_CCEE_arreglado <- historico_llenado_CCEE %>%
+#   mutate(
+#     Turno_levantado = as.character(Turno_levantado),                # por si venía como factor
+#     Turno_levantado = str_squish(str_to_title(Turno_levantado)),    # "MATUTINO" -> "Matutino"
+#     Turno_levantado = recode(Turno_levantado,
+#                    "Matutino"  = "Matutino",
+#                    "Vespertino"= "Vespertino",
+#                    "Nocturno"  = "Nocturno",
+#                    .default = NA_character_),   # otros valores a NA (opcional)
+#     Turno_levantado = factor(Turno_levantado)
+#   ) %>% 
+#   select(-Peso_Neto,-Id_pesada,-Fecha_pesada)
+# 
+# historico_llenado_CCEE_arreglado <- historico_llenado_CCEE_arreglado %>%
+#   mutate(
+#     contenedor_activo = if_else(
+#       coalesce(trimws(as.character(Id_motivo_inactiva)), "") == "0",
+#       "S", "N", missing = "N"
+#     )
+#   ) %>%
+#   relocate(contenedor_activo, .after = Numero_caja) %>% 
+#   relocate(Id_motivo_inactiva, .after = last_col()) %>% 
+#   rename(Id_viaje_SDFR = Id_viaje) %>% 
+#   mutate(DB = "SDFR")
+# 
+# historico_llenado_CCEE_arreglado <- historico_llenado_CCEE_arreglado %>% 
+#   filter(Fecha < "2025-09-03")
+# 
+# historico_llenado <- bind_rows(historico_llenado_CCEE, historico_llenadoGOL)
+# historico_llenado <- historico_llenado %>% 
+#   arrange(desc(Fecha),Circuito,Posicion)
+# 
+# prueba_global_llenado <- bind_rows(historico_llenado_CCEE_arreglado, historico_llenadoGOL)
 
-## Guardo el reducido.
-rutas_llenado$ruta_RDS_reducido <- file.path(
-  dirname(rutas_llenado$ruta_RDS_datos),
-  "historico_llenado_reducido.rds"
-)
-rutas_llenado$ruta_RDS_reducido
-
-historico_llenado_reducido <- historico_llenado %>%
-  filter(Fecha >= max(Fecha) - days(90))
-
-# Guardar el histórico actualizado en el archivo RDS
-saveRDS(historico_llenado_reducido, file = rutas_llenado$ruta_RDS_reducido)
-
-
-## 2. Datos de ubicaciones
+## 2. Datos de ubicaciones ----
 rutas_ubicaciones <- cargar_datos("10393_ubicaciones")
 # Definir globalmente la variable para esta sección
 ruta_RDS_planillas_procesadas <- rutas_ubicaciones$ruta_RDS_planillas_procesadas
@@ -123,36 +179,47 @@ saveRDS(historico_ubicaciones_reducido, file = rutas_ubicaciones$ruta_RDS_reduci
 ruta_RDS_modificaciones_historicas <- file.path(ruta_proyecto, "scripts/db/10393_ubicaciones/historico_modificaciones.rds")
 historico_ubicaciones_cambio_de_estado <- funcion_guardar_historico_modificaciones(
   ruta_RDS_modificaciones_historicas,
-  historico_ubicaciones,
-  historico_llenado
-)
+  historico_ubicaciones
+  )
 
-## 3. Datos de viajes
-rutas_viajes <- cargar_datos("10334_viajesEnUnPeriodo")
-# Definir globalmente la variable para esta sección
-ruta_RDS_planillas_procesadas <- rutas_viajes$ruta_RDS_planillas_procesadas
-historico_viajes <- actualizar_planillas_RDS(
-  ruta_proyecto, 
-  rutas_viajes$ruta_funciones, 
-  rutas_viajes$ruta_carpeta_archivos,
-  rutas_viajes$ruta_RDS_datos
-)
+# 
+# ## 3. Datos de viajes ----
+# rutas_viajes <- cargar_datos("10334_viajesEnUnPeriodo")
+# # Definir globalmente la variable para esta sección
+# ruta_RDS_planillas_procesadas <- rutas_viajes$ruta_RDS_planillas_procesadas
+# # ruta_funciones <- rutas_viajes$ruta_funciones
+# # ruta_carpeta_archivos <- rutas_viajes$ruta_carpeta_archivos
+# # ruta_RDS_datos <- rutas_viajes$ruta_RDS_datos
+# historico_viajes <- actualizar_planillas_RDS(
+#   ruta_proyecto, 
+#   rutas_viajes$ruta_funciones, 
+#   rutas_viajes$ruta_carpeta_archivos,
+#   rutas_viajes$ruta_RDS_datos
+# )
 
-## Guardo el reducido. ----
-rutas_viajes$ruta_RDS_reducido <- file.path(
-  dirname(rutas_viajes$ruta_RDS_datos),
-  "historico_viajes_reducido.rds"
-)
-rutas_viajes$ruta_RDS_reducido
+# eliminar_fechas_mal <- eliminar_datos_planillas_RDS(ruta_proyecto,
+#                              rutas_viajes$ruta_funciones,
+#                              rutas_viajes$ruta_carpeta_archivos,
+#                              rutas_viajes$ruta_RDS_datos,
+#                              rutas_viajes$ruta_RDS_planillas_procesadas,
+#                              "2025-09-23")      
 
-historico_viajes_reducido <- historico_viajes %>%
-  filter(Fecha >= max(Fecha) - days(90))
+# 
+# ## Guardo el reducido. 
+# rutas_viajes$ruta_RDS_reducido <- file.path(
+#   dirname(rutas_viajes$ruta_RDS_datos),
+#   "historico_viajes_reducido.rds"
+# )
+# rutas_viajes$ruta_RDS_reducido
+# 
+# historico_viajes_reducido <- historico_viajes %>%
+#   filter(Fecha >= max(Fecha) - days(90))
+# 
+# # Guardar el histórico actualizado en el archivo RDS
+# saveRDS(historico_viajes_reducido, file = rutas_viajes$ruta_RDS_reducido)
 
-# Guardar el histórico actualizado en el archivo RDS
-saveRDS(historico_viajes_reducido, file = rutas_viajes$ruta_RDS_reducido)
 
-
-## 4. Actualización de estado diario
+## 4. Actualización de estado diario ----
 ruta_RDS_datos <- file.path(ruta_proyecto, "scripts/estado_diario/historico_estado_diario.rds")
 
 # Usar siempre la versión optimizada
@@ -161,6 +228,12 @@ escribir_log("INFO", "Usando funciones optimizadas para estado diario")
 
 source(ruta_funciones_estadodiario)
 historico_estado_diario <- actualizar_planillas_RDS_estado_diario(ruta_RDS_datos)
+
+#### probando calcular estado_diario.
+#prueba_historico_estado_diario <- prueba_actualizar_planillas_RDS_estado_diario(ruta_RDS_datos)
+
+# ver <- historico_estado_diario %>% 
+#   filter(Fecha == "2025-09-18")
 
 ## Guardo el reducido. ----
 ruta_RDS_datos_reducido_estadodiario <- file.path(
@@ -177,32 +250,33 @@ saveRDS(historico_estado_diario_reducido, file = ruta_RDS_datos_reducido_estadod
 
 
 
-## 5. Datos de incidencias
-rutas_incidencias <- cargar_datos("10338_incidencias")
-# Definir globalmente la variable para esta sección
-ruta_RDS_planillas_procesadas <- rutas_incidencias$ruta_RDS_planillas_procesadas
-historico_incidencias <- actualizar_planillas_RDS(
-  ruta_proyecto, 
-  rutas_incidencias$ruta_funciones, 
-  rutas_incidencias$ruta_carpeta_archivos, 
-  rutas_incidencias$ruta_RDS_datos
-)
-historico_incidencias_completas <- actualizar_planillas_RDS_llenado_completas(
-  rutas_incidencias$ruta_RDS_datos
-)
+# ## 5. Datos de incidencias
+# rutas_incidencias <- cargar_datos("10338_incidencias")
+# # Definir globalmente la variable para esta sección
+# ruta_RDS_planillas_procesadas <- rutas_incidencias$ruta_RDS_planillas_procesadas
+# historico_incidencias <- actualizar_planillas_RDS(
+#   ruta_proyecto,
+#   rutas_incidencias$ruta_funciones,
+#   rutas_incidencias$ruta_carpeta_archivos,
+#   rutas_incidencias$ruta_RDS_datos
+# )
 
-## Guardo el reducido.
-rutas_incidencias$ruta_RDS_reducido <- file.path(
-  dirname(rutas_incidencias$ruta_RDS_datos),
-  "historico_incidencias_reducido.rds"
-)
-rutas_incidencias$ruta_RDS_reducido
-
-historico_incidencias_reducido <- historico_incidencias %>%
-  filter(Fecha >= max(Fecha) - days(90))
-
-# Guardar el histórico actualizado en el archivo RDS
-saveRDS(historico_incidencias_reducido, file = rutas_incidencias$ruta_RDS_reducido)
+# historico_incidencias_completas <- actualizar_planillas_RDS_llenado_completas(
+#   rutas_incidencias$ruta_RDS_datos
+# )
+#
+# ## Guardo el reducido.
+# rutas_incidencias$ruta_RDS_reducido <- file.path(
+#   dirname(rutas_incidencias$ruta_RDS_datos),
+#   "historico_incidencias_reducido.rds"
+# )
+# rutas_incidencias$ruta_RDS_reducido
+#
+# historico_incidencias_reducido <- historico_incidencias %>%
+#   filter(Fecha >= max(Fecha) - days(90))
+#
+# # Guardar el histórico actualizado en el archivo RDS
+# saveRDS(historico_incidencias_reducido, file = rutas_incidencias$ruta_RDS_reducido)
 
 
 ## 6. Actualización de incidencias por GID

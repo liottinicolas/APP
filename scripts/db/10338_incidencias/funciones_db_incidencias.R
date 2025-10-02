@@ -46,7 +46,7 @@ funcion_actualizar_incidencias_10334 <- function(
   
   incidencias_nuevo <- incidencias_nuevo %>% 
     rename(Fecha = Dia,
-           Id_viaje = id_viaje,
+           Id_viaje_SDFR = id_viaje,
            Id_incidencia = cod_inci)
    
   

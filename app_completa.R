@@ -77,7 +77,7 @@ server <- function(input, output, session) {
   
 shinyApp(ui, server)
 # 
-# # funcion_imprimir_datosporgid(105531)
+# # funcion_imprimir_datosporgid(142155)
 # 
 # # Definir la fecha a filtrar (puedes cambiar esta variable según necesites)
 # fecha_filtro <- as.Date("2025-05-13")  # Ejemplo de fecha, cámbiala según necesites

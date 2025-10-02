@@ -66,8 +66,7 @@ funcion_actualizar_ubicaciones_10393 <- function(
 
 # ruta_modificacion <- ruta_RDS_modificaciones_historicas
 # ubicaciones <- historico_ubicaciones
-# llenado <- historico_llenado
-funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicaciones,llenado){
+funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicaciones){
   
   historicos_modificados <- if (file.exists(ruta_modificacion)) {
     readRDS(ruta_modificacion)
@@ -81,7 +80,7 @@ funcion_guardar_historico_modificaciones <- function(ruta_modificacion,ubicacion
     ultimo_dia_con_modificacion <- max(historicos_modificados$Fecha)
     inicio_dia_con_modificacion <- ultimo_dia_con_modificacion + 1
     
-    fecha_fin <- max(llenado$Fecha)
+    fecha_fin <- max(ubicaciones$Fecha)
     
     if(ultimo_dia_con_modificacion < fecha_fin){
     

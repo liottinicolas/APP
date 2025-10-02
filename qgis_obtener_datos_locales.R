@@ -1,12 +1,12 @@
-# ==================================================================================
+
 #                     SCRIPT COMPLETO: LEER TABLAS ESPACIALES
-# ==================================================================================
+
 # Este script muestra cómo:
 #  1) Conectarse a Postgres/PostGIS
 #  2) Extraer automáticamente las tablas espaciales de `geometry_columns`
 #  3) Definir una función robusta para leer cualquiera de esas tablas como `sf`
 #  4) Probar la función con ejemplos, incluyendo diagnóstico si no aparece `geom_wkb`
-# ==================================================================================
+
 
 # 1) Instalar / cargar paquetes necesarios
 if (!requireNamespace("DBI", quietly = TRUE))    install.packages("DBI")
@@ -17,9 +17,9 @@ library(DBI)
 library(RPostgres)
 library(sf)
 
-# ==================================================================================
+
 # 2) PARÁMETROS DE CONEXIÓN A POSTGRES/POSTGIS
-# ==================================================================================
+
 dbname   <- "qgis"
 host     <- "pdbqgistest.imm.gub.uy"
 port     <- 5411
@@ -38,9 +38,9 @@ conn <- dbConnect(
   sslmode  = sslmode
 )
 
-# ==================================================================================
+
 # 4) OBTENER LAS TABLAS ESPACIALES DESDE geometry_columns
-# ==================================================================================
+
 #    Consultamos `geometry_columns` para listar esquema, nombre de tabla, 
 #    nombre de columna geométrica, tipo y srid. Luego armamos `tablas_geom`.
 sql_geom <- "
@@ -76,9 +76,9 @@ print(tablas_geom)
 # 4 public.otratabla_geom           the_geom      POINT        4326
 #    ...
 
-# ==================================================================================
+
 # 5) FUNCIÓN get_spatial_table(): LEER UNA TABLA ESPACIAL COMO sf
-# ==================================================================================
+
 # Parámetros:
 #   - nombre_completo: cadena "esquema.tabla" (tal cual figura en tablas_geom$tabla)
 #   - tablas_geom     : data.frame con las columnas obtenidas de `geometry_columns`
@@ -96,7 +96,8 @@ print(tablas_geom)
 #   - Si nombre_completo no está en tablas_geom$tabla          → stop(...)
 #   - Si la consulta no produce 'geom_wkb'                     → imprime names(df) y stop(...)
 #   - Si st_as_sf falla                                        → stop(...)
-# ==================================================================================
+
+
 get_spatial_table <- function(nombre_completo,
                               tablas_geom,
                               dbname   = "qgis",
@@ -191,13 +192,78 @@ print(tablas_geom$tabla)
 
 
 
-##########################################
+
+### Leo los movimientos de pluma ----
+
+library(DBI); library(RPostgres); library(sf)
+conn <- dbConnect(RPostgres::Postgres(),
+                  host="pdbqgistest.imm.gub.uy", port=5411,
+                  dbname="qgis", user="qgis", password="mapa22",
+                  sslmode="disable")
+
+# Detectar columna geom y SRID
+gi <- dbGetQuery(conn, "
+  SELECT f_geometry_column AS geom, srid
+  FROM geometry_columns
+  WHERE f_table_schema='public' AND f_table_name='PLUMA_movimientos'
+  LIMIT 1")
+stopifnot(nrow(gi)==1)
+geom_col <- DBI::dbQuoteIdentifier(conn, gi$geom[1])
+srid     <- gi$srid[1]
+
+# Traer como EWKB y convertir
+sql <- sprintf('SELECT *, ST_AsEWKB(%s) AS ewkb FROM "public"."PLUMA_movimientos"', geom_col)
+df  <- dbGetQuery(conn, sql)
+geom <- sf::st_as_sfc(df$ewkb, EWKB = TRUE, crs = srid)
+g1   <- sf::st_sf(df[ , setdiff(names(df), "ewkb")], geometry = geom)
+dbDisconnect(conn)
+
+plot(sf::st_geometry(g1))
+
+
+
+
+### Circuitos con turnos y frecuencias ----
+
+library(DBI); library(RPostgres); library(sf)
+conn <- dbConnect(RPostgres::Postgres(),
+                  host="pdbqgistest.imm.gub.uy", port=5411,
+                  dbname="qgis", user="qgis", password="mapa22",
+                  sslmode="disable")
+
+# Detectar columna geom y SRID
+gi <- dbGetQuery(conn, "
+  SELECT f_geometry_column AS geom, srid
+  FROM geometry_columns
+  WHERE f_table_schema='public' AND f_table_name='Circuitos con turnos y frecuencias'
+  LIMIT 1")
+stopifnot(nrow(gi)==1)
+geom_col <- DBI::dbQuoteIdentifier(conn, gi$geom[1])
+srid     <- gi$srid[1]
+
+# Traer como EWKB y convertir
+sql <- sprintf('SELECT *, ST_AsEWKB(%s) AS ewkb FROM "public"."Circuitos con turnos y frecuencias"', geom_col)
+df  <- dbGetQuery(conn, sql)
+geom <- sf::st_as_sfc(df$ewkb, EWKB = TRUE, crs = srid)
+g1   <- sf::st_sf(df[ , setdiff(names(df), "ewkb")], geometry = geom)
+dbDisconnect(conn)
+
+plot(sf::st_geometry(g1))
+
+
+
+
+
+
+
+
+
 # HASTA ACÁ FUNCIONA #
 # LEE LAS TABLAS QUE ESTÁN EN POSGRES.
-##########################################
 
 
-##### Se cambia el nombre en 3 lugares ######
+
+### Se cambia el nombre en 3 lugares 
 
 conn <- dbConnect(
   RPostgres::Postgres(),
@@ -257,13 +323,16 @@ plot(st_geometry(sf_circuitos), main = "Circuitos con turnos y frecuencias")
 
 
 
-# ============================================
 # 6) CERRAR CONEXIÓN
-# ============================================
 dbDisconnect(conn)
 
 
 
+
+
+library(sf)
+url <- "https://geoserver-ed.imm.gub.uy/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=workspace:capa&outputFormat=application/json"
+g <- read_sf(url)
 
 
 
@@ -292,6 +361,53 @@ cols_ide <- dbGetQuery(conn2, "
 print(cols_ide)
 
 dbDisconnect(conn)
+
+
+
+
+
+
+
+
+### OBTENER TODOS LOS CIRCUITOS ACTUALES Y VIEJOS. ----
+url <- paste0(
+  "https://geoserver-ed.imm.gub.uy/geoserver/wfs?",
+  "service=WFS&version=2.0.0&request=GetFeature",
+  "&typenames=imm:spaa_zona_recorrido_print",
+  "&outputFormat=application/json",
+  "&srsName=EPSG:4326"  # o EPSG:32721 si querés UTM
+)
+g <- read_sf(url)
+
+
+
+
+### OBTENER TODOS Las posiciones. ----
+
+url <- paste0(
+  "https://geoserver-ed.imm.gub.uy/geoserver/wfs?",
+  "service=WFS&version=2.0.0&request=GetFeature",
+  "&typenames=imm:spaa_posiciones_recorrido_print",
+  "&outputFormat=application/json",
+  "&srsName=EPSG:4326"  # o EPSG:32721 si querés UTM
+)
+g <- read_sf(url)
+
+
+
+
+### OBTENER TODOS los circuitos vigentes ----
+
+url <- paste0(
+  "https://geoserver-ed.imm.gub.uy/geoserver/wfs?",
+  "service=WFS&version=2.0.0&request=GetFeature",
+  "&typenames=imm:V_DF_ZONA_RECORRIDO_GEOM",
+  "&outputFormat=application/json",
+  "&srsName=EPSG:4326"  # o EPSG:32721 si querés UTM
+)
+g <- read_sf(url)
+
+
 
 
 

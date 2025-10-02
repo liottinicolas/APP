@@ -66,7 +66,8 @@ funcion_actualizar_viajesEnUnPeriodo_10334 <- function(
       
     
   viajes_nuevo <- viajes_nuevo %>% 
-    rename(Fecha = Dia)
+    rename(Fecha = Dia) %>% 
+    rename(Id_viaje_SDFR = Id_viaje)
   
     
   
@@ -120,11 +121,11 @@ masde1levantado_deldia <- masde1levantado_deldia_sin_pendientes %>%
 
 bloque_1_levantados <- solo1levantado_deldia %>% 
   rename(Posicion = Posicion_inicial) %>% 
-  select(Fecha,Id_viaje,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
+  select(Fecha,Id_viaje_SDFR,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
   mutate(DB = "ViajesEnUnPeriodo")
 
 bloque_2_levantados <- masde1levantado_deldia %>% 
-  select(Fecha,Id_viaje,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
+  select(Fecha,Id_viaje_SDFR,Id_turno,Municipio,Circuito,Circuito_corto,Posicion) %>% 
   mutate(DB = "ViajesEnUnPeriodo")
 
 retorno <- bind_rows(bloque_1_levantados,bloque_2_levantados)

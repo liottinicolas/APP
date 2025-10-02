@@ -43,7 +43,7 @@ reportesIncidenciasUI <- function(id) {
                    "Fecha" = "Fecha",
                    "Municipio" = "Municipio", 
                    "Circuito_corto" = "Circuito_corto",
-                   "Turno" = "Turno",
+                   "Turno" = "Turno_levantado",
                    "Incidencia" = "Incidencia"
                  ),
                  selected = "Incidencia"
@@ -201,7 +201,7 @@ reportesIncidenciasServer <- function(input, output, session) {
       "Fecha" = "Fecha",
       "Municipio" = "Municipio", 
       "Circuito_corto" = "Circuito_corto",
-      "Turno" = "Turno",
+      "Turno" = "Turno_levantado",
       "Incidencia" = "Incidencia"
     )
     

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE WMT_MS_Capabilities SYSTEM "https://geoserver-ed.imm.gub.uy/geoserver/schemas/wms/1.1.1/WMS_MS_Capabilities.dtd">
-<WMT_MS_Capabilities version="1.1.1" updateSequence="3611">
+<WMT_MS_Capabilities version="1.1.1" updateSequence="3965">
   <Service>
     <Name>OGC:WMS</Name>
     <Title>GeoServer Web Map Service</Title>
@@ -6916,6 +6916,7 @@
       <SRS>EPSG:68186405</SRS>
       <SRS>EPSG:68206405</SRS>
       <SRS>EPSG:69036405</SRS>
+      <SRS>EPSG:404000</SRS>
       <SRS>EPSG:42101</SRS>
       <SRS>EPSG:45556</SRS>
       <SRS>EPSG:42102</SRS>
@@ -6948,7 +6949,6 @@
       <SRS>EPSG:100003</SRS>
       <SRS>EPSG:54029</SRS>
       <SRS>EPSG:900913</SRS>
-      <SRS>EPSG:404000</SRS>
       <LatLonBoundingBox minx="-73.76341742015649" miny="-80.01343130977126" maxx="-40.236582579843464" maxy="0.0"/>
       <Layer queryable="1">
         <Name>spaa_carto_full_print</Name>

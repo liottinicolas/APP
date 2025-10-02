@@ -110,3 +110,8 @@
   # funcion_imprimir_datosporgid("180687")
   # 
   # 
+  
+  library(arrow)
+  write_parquet(historico_llenado, "llenado.parquet")
+  write_feather(historico_llenado, "llenado.feather")
+  
