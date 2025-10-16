@@ -368,7 +368,6 @@ write_xlsx(prom_circuito_ext, "prom_circuito_ext.xlsx")
 # FIN Detectar inconsistencias ----
 
 ### CH ----
-
 resultado_ch <- comparar_cajas_vs_lateral(municipio = "CH")
 
 caja_desmontable_ch <- resultado_ch$caja_desmontable

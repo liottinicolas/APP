@@ -207,3 +207,17 @@ df_final_sololevantados_UNAmayorA100 <- df_final_sololevantados %>%
 # 
 # # Guardar como Excel
 # saveWorkbook(wb, "mis_datos.xlsx", overwrite = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

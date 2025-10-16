@@ -386,3 +386,193 @@ ubicaciones_con_direccion <- geo_all |>
 ruta_RSD_historico_con_ubicacion <- file.path(ruta_proyecto, "scripts/db/DFR_ubicaciones/historico_DFR_posiciones_DEBAJA_condireccion.rds")
 
 saveRDS(geo_all, ruta_RSD_historico_con_ubicacion)
+
+
+
+
+#### 
+# Arreglar los POINT VACIOS ----
+
+
+historico_llenado_unicos <- historico_llenado %>% 
+  select(Fecha,Circuito,Posicion,Direccion,gid) %>% 
+  distinct()
+
+
+historial <- historico_llenado %>%
+  mutate(Fecha = as.Date(Fecha)) %>%
+  arrange(gid, Fecha) %>%
+  group_by(gid) %>%
+  mutate(
+    cambio = Direccion != lag(Direccion, default = first(Direccion)),
+    tramo  = cumsum(replace_na(cambio, FALSE))
+  ) %>%
+  group_by(gid, tramo) %>%
+  summarise(
+    Direccion     = first(Direccion),
+    fecha_min     = min(Fecha),
+    fecha_max     = max(Fecha),
+    n_registros   = n(),
+    .groups = "drop"
+  ) %>%
+  group_by(gid) %>%
+  arrange(fecha_min, .by_group = TRUE) %>%
+  mutate(
+    # Cierra el tramo el día anterior al próximo cambio
+    fecha_fin_real = lead(fecha_min) - 1
+  ) %>%
+  ungroup()
+
+
+historico_ubicaciones_arreglandose <- historico_ubicaciones
+  
+  # Diccionario base: clave = patrón REGEX, valor = reemplazo
+  dicc_direcciones <- c(
+    "SAENZ PE\\?A" = "SAENZ PEÑA",
+    "PE\\?A"       = "PEÑA",
+    "IBA\\?EZ"     = "IBAÑEZ",
+    "NARI\\?O"       =  "NARIÑO",
+    "CUITI\\?O" = "CUITIÑO",
+    "HECT\\?REAS" = "HECTÁREAS",
+    "ORDO\\?EZ" = "ORDOÑEZ",
+    "NU\\?EZ" = "NUÑEZ",
+    "MU\\?IZ" = "MUÑIZ",
+    "N\\?" = "Nº",
+    "O\\?HIGGINS" = "O´HIGGINS",
+    "I\\?IGUEZ" = "IÑIGUEZ",
+    "ACU\\?A" = "ACUÑA",
+    "I\\?IGUEZ" = "IÑIGUEZ",
+    "MU\\?OZ" = "MUÑOZ",
+    "MA\\?E" = "MAÑE",
+    "CA\\?ADA" = "CAÑADA", 
+    "CORU\\?A" = "CORUÑA",
+    "CA\\?AS" = "CAÑAS",
+    "MAGARI\\?OS" = "MAGARIÑOS",
+    "BURGUE\\?O" = "BURGUEÑO",
+    "BALD\\?O" = "BALDÍO",
+    "hormig\\?n" = "hormigón",
+    "RA\\?A" = "RAÑA",
+    "FARAMI\\?AN" = "FARAMIÑAN",
+    "JOAQU\\?N" = "JOAQUÍN"
+    
+    # sumá más casos:
+    # "MA\\?ANA"   = "MAÑANA",
+    # "A\\?O"      = "AÑO"
+  )
+
+# Aplica todos los reemplazos del diccionario a un vector de texto
+corregir_por_dicc <- function(x, dicc) {
+  out <- x
+  for (pat in names(dicc)) {
+    out <- gsub(pat, dicc[[pat]], out, perl = TRUE)
+  }
+  out
+}
+
+# Normaliza una columna de un data.frame
+normalizar_direcciones <- function(df, col = "Direccion", dicc = dicc_direcciones) {
+  stopifnot(col %in% names(df))
+  df[[col]] <- corregir_por_dicc(df[[col]], dicc)
+  df
+}  
+  
+historico_ubicaciones_arreglandose <- normalizar_direcciones(historico_ubicaciones, col = "Calle")
+
+  
+  
+
+historial_ubic <- historico_ubicaciones_arreglandose %>%
+  mutate(
+    Fecha = as.Date(Fecha),
+    Calle  = str_squish(coalesce(as.character(Calle), "")),
+    Numero = str_squish(coalesce(as.character(Numero), "")),
+    Direccion = str_squish(str_trim(paste(Calle, Numero)))
+  ) %>%
+  arrange(gid, Fecha) %>%
+  group_by(gid) %>%
+  mutate(
+    cambio = Direccion != lag(Direccion, default = first(Direccion)),
+    tramo  = cumsum(replace_na(cambio, FALSE))
+  ) %>%
+  group_by(gid, tramo) %>%
+  summarise(
+    Direccion   = first(Direccion),
+    fecha_min   = min(Fecha),
+    fecha_max   = max(Fecha),
+    n_registros = n(),
+    # opcionales: conservar referencia
+    Circuito    = first(Circuito),
+    Municipio   = first(Municipio),
+    Posicion    = first(Posicion),
+    .groups = "drop"
+  ) %>%
+  group_by(gid) %>%
+  arrange(fecha_min, .by_group = TRUE) %>%
+  mutate(fecha_fin_real = lead(fecha_min) - 1) %>%
+  ungroup()
+
+### prueba historico_DFR
+
+  
+  library(dplyr)
+library(stringr)
+
+arreglo_historico_DFR <- arreglo_historico_DFR %>%
+  mutate(
+    Direccion_dfr = as.character(Direccion_dfr),
+    Observaciones = as.character(Observaciones)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    obs_ok   = !is.na(Observaciones) && nzchar(Observaciones),
+    # escapá metacaracteres de la observación para usarla en regex
+    obs_esc  = if (obs_ok) str_replace_all(Observaciones, "([\\W])", "\\\\\\1") else "",
+    # patrón: opcional separador + la observación, case-insensitive
+    patt     = if (obs_ok) regex(paste0("\\s*[-–—,:;/]?\\s*", obs_esc), ignore_case = TRUE) else regex("$a^"),
+    hay_match = obs_ok && str_detect(Direccion_dfr, regex(obs_esc, ignore_case = TRUE)),
+    Direccion_dfr = if (hay_match)
+      str_squish(str_replace_all(Direccion_dfr, patt, ""))
+    else
+      Direccion_dfr,
+    Modificado = if_else(hay_match, "Si", "No")
+  ) %>%
+  ungroup() %>%
+  select(-obs_ok, -obs_esc, -patt, -hay_match)
+
+
+---
+  
+  
+  library(dplyr)
+library(stringr)
+
+sep_pat <- "\\s*[-–—,:;/]?\\s*"
+
+arreglo_historico_DFR2 <- arreglo_historico_DFR %>%
+  mutate(
+    Direccion_dfr = as.character(Direccion_dfr),
+    Observaciones = as.character(Observaciones)
+  ) %>%
+  rowwise() %>%
+  mutate(
+    obs_ok = !is.na(Observaciones) && nzchar(Observaciones),
+    # escapar todo lo no alfanumérico para usar como literal en regex
+    obs_esc = if (obs_ok) str_replace_all(Observaciones, "([\\W])", "\\\\\\1") else "",
+    Direccion_nueva = if (obs_ok) {
+      # 1) borrar con separador alrededor
+      tmp <- str_replace_all(Direccion_dfr, paste0("(?i)", sep_pat, obs_esc), "")
+      # 2) por si quedó sin separador exacto, borrar el literal solo
+      tmp <- str_replace_all(tmp, paste0("(?i)", obs_esc), "")
+      str_squish(tmp)
+    } else Direccion_dfr,
+    Modificado = if_else(Direccion_nueva != Direccion_dfr, "Si", "No"),
+    Direccion_dfr = Direccion_nueva
+  ) %>%
+  ungroup() %>%
+  select(-obs_ok, -obs_esc, -Direccion_nueva)
+
+
+arreglo_historico_DFR2_ver <- normalizar_direcciones(arreglo_historico_DFR2, col = "Direccion_dfr")
+
+
+#### Intentando arreglar el historico_llenado.

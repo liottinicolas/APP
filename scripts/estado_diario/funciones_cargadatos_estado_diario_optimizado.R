@@ -90,7 +90,7 @@ actualizar_planillas_RDS_estado_diario <- function(ruta_datos){
       lista_cambios <- list()
       
       # Procesar cada día nuevo
-      for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin-1, by = "day")) {
+      for(i in seq.Date(inicio_dia_con_modificacion, fecha_fin, by = "day")) {
         
         # i <- inicio_dia_con_modificacion
         fecha <- as.Date(i, origin = "1970-01-01")
