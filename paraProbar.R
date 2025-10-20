@@ -576,3 +576,33 @@ arreglo_historico_DFR2_ver <- normalizar_direcciones(arreglo_historico_DFR2, col
 
 
 #### Intentando arreglar el historico_llenado.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Contenedores rotos y fuego en periodo ----
+
+setiembre_total <- historico_llenado %>% 
+  filter(Fecha >= "2025-09-01") %>% 
+  filter(Fecha < "2025-10-01") %>% 
+  filter(Incidencia == "Contenedor Roto (choque, desfonde, etc.)" | Incidencia == "Fuego") %>% 
+  group_by(gid,Incidencia) %>% 
+  summarise(total = n())
+
+setiembre <- historico_llenado %>% 
+  filter(Fecha >= "2025-09-01") %>% 
+  filter(Fecha < "2025-10-01") %>% 
+  filter(Incidencia == "Contenedor Roto (choque, desfonde, etc.)" | Incidencia == "Fuego") %>% 
+  select(Fecha,gid,Circuito,Posicion,Direccion,Incidencia) %>% 
+  distinct()
