@@ -526,7 +526,7 @@ write_xlsx(drive, "drve.xlsx")
 
 
 ### RECLAMOS ----
-
+url <- "https://ckan-data.montevideo.gub.uy/dataset/c34e11ea-c547-46d5-80c6-d0bf283c002f/resource/ccb644b1-79b0-4caa-a353-6cfa816f3f70/download/reclamos.zip"
 
 library(readr)
 
@@ -541,7 +541,9 @@ reclamos <- datos %>%
   filter(tipo_de_reclamo == "VALIDO") %>% 
   filter(!is.na(longitud))
 
-
+reclamos_ver <- reclamos %>% 
+  group_by(estado) %>% 
+  summarise(total = n())
 
 
 
@@ -761,3 +763,97 @@ df <- read_sheet("https://docs.google.com/spreadsheets/d/ID/edit#gid=0", sheet =
 df <- read_sheet("https://docs.google.com/spreadsheets/d/1FguUTUmtHrbDJPOI6qav3e1IXiV5byH1uVv0DnkzMWk/edit?gid=1615275865#gid=1615275865", sheet = "REGISTRO DE ZONA LIMPIA")
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Paquetes
+library(sf)
+library(readr)
+library(dplyr)
+library(tools)
+
+url <- "https://ckan-data.montevideo.gub.uy/dataset/c34e11ea-c547-46d5-80c6-d0bf283c002f/resource/ccb644b1-79b0-4caa-a353-6cfa816f3f70/download/reclamos.zip"
+
+# 1) Descargar y descomprimir a temp
+tmp_zip <- tempfile(fileext = ".zip")
+dir_out <- tempfile(pattern = "zip_unpacked_")
+dir.create(dir_out, showWarnings = FALSE, recursive = TRUE)
+download.file(url, tmp_zip, mode = "wb", quiet = TRUE)
+unzip(tmp_zip, exdir = dir_out)
+
+# 2) Detectar qué hay adentro
+files <- list.files(dir_out, recursive = TRUE, full.names = TRUE)
+
+# 3) Si hay GPKG
+gpkg <- files[grepl("\\.gpkg$", files, ignore.case = TRUE)]
+if (length(gpkg) > 0) {
+  # leer todas las capas
+  capas <- st_layers(gpkg[1])$name
+  g <- do.call(rbind, lapply(capas, function(nm) st_read(gpkg[1], layer = nm, quiet = TRUE)))
+  g <- st_make_valid(g)
+  print(g)
+} else {
+  # 4) Si hay SHP
+  shp <- files[grepl("\\.shp$", files, ignore.case = TRUE)]
+  if (length(shp) > 0) {
+    g <- st_read(shp[1], quiet = TRUE)
+    g <- st_make_valid(g)
+    print(g)
+  } else {
+    # 5) Si hay CSV: intentar lon/lat comunes
+    csv <- files[grepl("\\.csv$", files, ignore.case = TRUE)]
+    if (length(csv) > 0) {
+      df <- suppressMessages(read_csv(csv[1], show_col_types = FALSE))
+      # heurística de columnas
+      lon_cols <- c("lon","long","longitude","x","coord_x","longitud")
+      lat_cols <- c("lat","latitude","y","coord_y","latitud")
+      lon <- intersect(tolower(names(df)), lon_cols)[1]
+      lat <- intersect(tolower(names(df)), lat_cols)[1]
+      if (!is.na(lon) && !is.na(lat)) {
+        # usar nombres originales respetando mayúsculas
+        lon <- names(df)[match(lon, tolower(names(df)))]
+        lat <- names(df)[match(lat, tolower(names(df)))]
+        g <- st_as_sf(df, coords = c(lon, lat), crs = 4326, remove = FALSE)
+        print(g)
+      } else {
+        message("CSV sin columnas lon/lat reconocibles. Devuelvo data.frame.")
+        print(df)
+      }
+    } else {
+      stop("No se encontró GPKG, SHP ni CSV dentro del ZIP.")
+    }
+  }
+}
+
+# 6) Transformar a WGS84 si hace falta
+if (exists("g") && inherits(g, "sf") && st_crs(g) != st_crs(4326)) {
+  g <- st_transform(g, 4326)
+}
+
+# 7) Resultado en 'g' (sf) o 'df' (data.frame)
+if (exists("g")) {
+  cat("Registros:", nrow(g), "\nCRS:", st_crs(g)$input, "\n")
+}

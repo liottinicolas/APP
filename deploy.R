@@ -115,3 +115,27 @@
   write_parquet(historico_llenado, "llenado.parquet")
   write_feather(historico_llenado, "llenado.feather")
   
+  
+  
+  
+  # 1) Instalar el paquete R tinytex
+  install.packages("tinytex")
+  
+  # 2) Instalar TinyTeX (distribución LaTeX mínima)
+  tinytex::install_tinytex()   # tarda unos minutos
+  
+  # 3) Verificar que quedó operativo
+  tinytex::is_tinytex()
+  
+  # 4) Instalar el paquete LaTeX que falta (KOMA-Script)
+  tinytex::tlmgr_install("koma-script")
+  
+  # 5) (Opcional) Actualizar todo TeX Live
+  tinytex::tlmgr_update()
+  
+  R.version.string
+  Sys.getenv("RTOOLS42_HOME")
+  Sys.which("make")
+  install.packages("pkgbuild")
+  pkgbuild::has_build_tools(debug = TRUE)
+  

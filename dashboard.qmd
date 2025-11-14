@@ -1,0 +1,82 @@
+---
+title: "Dashboard filtrable de ejemplo"
+format:
+  dashboard:
+    theme: cosmo
+server: shiny
+---
+
+```{r}
+#| context: setup
+#| message: false
+#| warning: false
+
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(DT)
+
+df <- resumen_dia
+```
+
+## Filtros {.sidebar}
+
+```{r}
+selectInput(
+  inputId = "species",
+  label   = "Especie:",
+  choices = c("Todas", sort(unique(df$Species))),
+  selected = "Todas"
+)
+
+sliderInput(
+  inputId = "sepal_min",
+  label   = "Sepal.Length mínimo:",
+  min     = floor(min(df$Sepal.Length)),
+  max     = ceiling(max(df$Sepal.Length)),
+  value   = floor(min(df$Sepal.Length)),
+  step    = 0.5
+)
+```
+
+## Lógica del servidor
+
+```{r}
+#| context: server
+
+datos_filtrados <- reactive({
+  out <- df |> dplyr::filter(Sepal.Length >= input$sepal_min)
+
+  if (input$species != "Todas") {
+    out <- out |> dplyr::filter(Species == input$species)
+  }
+
+  out
+})
+
+output$tabla <- DT::renderDataTable({
+  DT::datatable(
+    datos_filtrados(),
+    options = list(pageLength = 10, autoWidth = TRUE)
+  )
+})
+
+output$plot <- renderPlot({
+  datos_filtrados() |>
+    ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+    geom_point() +
+    theme_minimal()
+})
+```
+
+## Tabla filtrada
+
+```{r}
+DT::dataTableOutput("tabla")
+```
+
+## Gráfico filtrado
+
+```{r}
+plotOutput("plot")
+```

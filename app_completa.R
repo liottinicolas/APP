@@ -1,5 +1,4 @@
 # nolint start: line_length_linter, object_name_linter
-
 source("config.R")
 source("logging.R")
 source("global.R")
