@@ -1,0 +1,64 @@
+---
+title: "Cars interactivo"
+format:
+  html:
+    toc: true
+    code-tools: true
+    df-print: paged
+---
+
+```{r}
+# Paquetes (descomentar si faltan)
+# install.packages(c("dplyr","plotly","DT","crosstalk"))
+
+library(dplyr)
+library(plotly)
+library(DT)
+library(crosstalk)
+
+cars <- as_tibble(datasets::cars) |>
+  mutate(velocidad = speed, distancia = dist)
+
+sd <- SharedData$new(cars)
+```
+
+# Controles
+
+```{r}
+filter_slider("f_speed", "Velocidad", sd, ~velocidad, step = 1)
+filter_slider("f_dist",  "Distancia", sd, ~distancia, step = 5)
+filter_checkbox("f_bins", "Rango de distancia",
+                sd, ~cut(distancia, breaks = c(0,25,50,75,120)),
+                inline = TRUE)
+```
+
+# Dispersión interactiva
+
+```{r}
+plot_ly(sd,
+        x = ~velocidad, y = ~distancia,
+        type = "scatter", mode = "markers",
+        hovertemplate = "Velocidad: %{x}<br>Distancia: %{y}<extra></extra>") |>
+  layout(xaxis = list(title = "Velocidad (mph)"),
+         yaxis = list(title = "Distancia de frenado (ft)"))
+```
+
+# Tabla filtrable
+
+```{r}
+datatable(sd,
+          extensions = "Buttons",
+          options = list(dom = "Bfrtip", buttons = c("copy","csv","excel","print"),
+                         pageLength = 10),
+          rownames = FALSE)
+```
+
+# Resumen dinámico
+
+```{r}
+sd$data(withSelection = TRUE) |>
+  summarise(n = n(),
+            vel_prom = round(mean(velocidad),2),
+            dist_prom = round(mean(distancia),2)) |>
+  knitr::kable()
+```

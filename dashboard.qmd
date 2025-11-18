@@ -1,82 +1,166 @@
 ---
-title: "Dashboard filtrable de ejemplo"
+title: "Resumen diario de recolección"
 format:
-  dashboard:
+  html:
     theme: cosmo
+    toc: true
+    page-layout: custom
 server: shiny
+execute:
+  echo: false
+  warning: false
+  message: false
 ---
 
 ```{r}
 #| context: setup
-#| message: false
-#| warning: false
-
 library(shiny)
 library(dplyr)
 library(ggplot2)
 library(DT)
+library(readxl)
 
-df <- resumen_dia
+# Ajustá el nombre/ruta si es distinto
+ruta_excel <- "salida.xlsx"
+
+if (!file.exists(ruta_excel)) {
+  stop("No se encuentra el archivo: ", ruta_excel)
+}
+
+# Hoja DB
+resumen_dia <- read_excel(ruta_excel, sheet = "DB") |>
+  mutate(
+    Fecha = as.Date(Fecha),
+    Dia   = as.character(Dia)
+  )
 ```
-
-## Filtros {.sidebar}
 
 ```{r}
+#| panel: sidebar
+
+# Selector de variable a graficar
+
 selectInput(
-  inputId = "species",
-  label   = "Especie:",
-  choices = c("Todas", sort(unique(df$Species))),
-  selected = "Todas"
+inputId = "var_y",
+label   = "Variable a mostrar",
+choices = c(
+"Planificados",
+"Programado",
+"Visitados",
+"No_visitados",
+"Vaciados",
+"No_Vaciados"
+),
+selected = "Vaciados"
 )
 
-sliderInput(
-  inputId = "sepal_min",
-  label   = "Sepal.Length mínimo:",
-  min     = floor(min(df$Sepal.Length)),
-  max     = ceiling(max(df$Sepal.Length)),
-  value   = floor(min(df$Sepal.Length)),
-  step    = 0.5
+# Filtro por día de la semana
+
+selectInput(
+inputId = "dia_semana",
+label   = "Día de la semana",
+choices = c("Todos", sort(unique(resumen_dia$Dia))),
+selected = "Todos"
 )
+
+# Rango de fechas
+
+dateRangeInput(
+inputId = "rango_fechas",
+label   = "Rango de fechas",
+start   = min(resumen_dia$Fecha, na.rm = TRUE),
+end     = max(resumen_dia$Fecha, na.rm = TRUE)
+)
+
+
 ```
 
-## Lógica del servidor
+
+```{r}
+#| panel: fill
+
+h3("Gráfico de evolución")
+plotOutput("grafico")
+
+h3("Tabla detallada")
+dataTableOutput("tabla")
+
+h3("Resumen numérico")
+verbatimTextOutput("resumen")
+
+
+```
+
+
 
 ```{r}
 #| context: server
 
+# Reactivo común para aplicar filtros
+
 datos_filtrados <- reactive({
-  out <- df |> dplyr::filter(Sepal.Length >= input$sepal_min)
+df <- resumen_dia
 
-  if (input$species != "Todas") {
-    out <- out |> dplyr::filter(Species == input$species)
-  }
+# filtro por día
 
-  out
+if (!is.null(input$dia_semana) && input$dia_semana != "Todos") {
+df <- df |> filter(Dia == input$dia_semana)
+}
+
+# filtro por rango de fechas
+
+if (!is.null(input$rango_fechas[1]) && !is.null(input$rango_fechas[2])) {
+df <- df |>
+filter(
+Fecha >= input$rango_fechas[1],
+Fecha <= input$rango_fechas[2]
+)
+}
+
+df
 })
 
-output$tabla <- DT::renderDataTable({
-  DT::datatable(
-    datos_filtrados(),
-    options = list(pageLength = 10, autoWidth = TRUE)
-  )
+# Gráfico
+
+output$grafico <- renderPlot({
+req(input$var_y)
+
+df <- datos_filtrados()
+validate(need(nrow(df) > 0, "No hay datos para los filtros seleccionados."))
+
+ggplot(df, aes(x = Fecha, y = .data[[input$var_y]])) +
+geom_line() +
+geom_point() +
+labs(
+x = "Fecha",
+y = input$var_y,
+title = paste("Evolución diaria de", input$var_y)
+)
 })
 
-output$plot <- renderPlot({
-  datos_filtrados() |>
-    ggplot(aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
-    geom_point() +
-    theme_minimal()
+# Tabla
+
+output$tabla <- renderDataTable({
+datos_filtrados() |>
+arrange(Fecha) |>
+datatable(
+options = list(
+pageLength = 20,
+autoWidth = TRUE
+)
+)
 })
+
+# Resumen numérico
+
+output$resumen <- renderPrint({
+df <- datos_filtrados()
+summary(df[, c(
+"Planificados", "Programado", "Visitados",
+"No_visitados", "Vaciados", "No_Vaciados"
+)])
+})
+
+
 ```
 
-## Tabla filtrada
-
-```{r}
-DT::dataTableOutput("tabla")
-```
-
-## Gráfico filtrado
-
-```{r}
-plotOutput("plot")
-```
