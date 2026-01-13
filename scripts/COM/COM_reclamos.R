@@ -534,16 +534,120 @@ url <- "https://ckan-data.montevideo.gub.uy/dataset/45a29508-20d4-4adb-8b23-4f6e
 
 datos <- read_csv(url)
 
+listado_incidencias <- datos %>% 
+  distinct(incidente)
+
+
 # X2025 <- read_csv("scripts/COM/2025.csv")
 
-reclamos <- datos %>% 
-  filter(incidente == "Residuos esparcidos" | incidente == "Basura fuera del contenedor") %>% 
+datos <- datos %>% 
+  filter(incidente == "Residuos esparcidos" | incidente == "Basura fuera del contenedor" | incidente == "Contenedor desbordado") %>% 
   filter(tipo_de_reclamo == "VALIDO") %>% 
   filter(!is.na(longitud))
 
-reclamos_ver <- reclamos %>% 
-  group_by(estado) %>% 
-  summarise(total = n())
+
+reclamos <- reclamos %>% 
+  mutate(
+    Circuito_corto = case_when(
+      is.na(circuito) ~ NA_character_,
+      circuito == "-" ~ "Sin circuito",
+      TRUE ~ gsub("^([A-Za-z]+)([0-9].*)$", "\\1_\\2", circuito)
+    )
+  )
+
+reclamos_resumen_por_circuito <- reclamos %>% 
+  group_by(Circuito_corto) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  )
+
+reclamos_resumen_por_circuito_por_incidente <- reclamos %>% 
+  group_by(Circuito_corto,incidente) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  )
+
+
+reclamos_resumen_por_circuito_por_incidente_porfecha <- reclamos %>% 
+  mutate(fecha = as.Date(fecha_de_reclamo)) %>%  # tira la hora
+  group_by(Circuito_corto,incidente,fecha) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  ) %>% 
+  arrange(desc(fecha),desc(n_reclamos),Circuito_corto)
+
+
+reclamos_resumen_por_dia_e_incidencia <- reclamos %>% 
+  mutate(fecha = as.Date(fecha_de_reclamo)) %>%  # tira la hora
+  group_by(fecha,incidente) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  ) %>% 
+  arrange(desc(fecha),desc(n_reclamos))
+
+
+
+#### ZL ----
+
+zonalimpia <- datos %>% 
+  filter(grepl("Zona limpia", incidente)) %>% 
+  filter(tipo_de_reclamo == "VALIDO") %>% 
+  filter(!is.na(longitud))
+
+zonalimpia <- zonalimpia %>% 
+  mutate(
+    Circuito_corto = case_when(
+      is.na(circuito) ~ NA_character_,
+      circuito == "-" ~ "Sin circuito",
+      TRUE ~ gsub("^([A-Za-z]+)([0-9].*)$", "\\1_\\2", circuito)
+    )
+  )
+
+
+zonalimpia_resumen_por_circuito <- zonalimpia %>% 
+  group_by(Circuito_corto) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  )
+
+
+zonalimpia_resumen_por_circuito_por_incidente <- zonalimpia %>% 
+  group_by(Circuito_corto,incidente) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  )
+
+zonalimpia_resumen_por_circuito_por_incidente_porfecha <- zonalimpia %>% 
+  mutate(fecha = as.Date(fecha_de_reclamo)) %>%  # tira la hora
+  group_by(Circuito_corto,incidente,fecha) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  ) %>% 
+  arrange(desc(fecha),desc(n_reclamos),Circuito_corto)
+
+zonalimpia_resumen_por_dia_e_incidencia <- zonalimpia %>% 
+  mutate(fecha = as.Date(fecha_de_reclamo)) %>%  # tira la hora
+  group_by(fecha,incidente) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  ) %>% 
+  arrange(desc(fecha),desc(n_reclamos))
+
+
+zonalimpia_por_incidentes <- zonalimpia %>% 
+  group_by(incidente) %>% 
+  summarise(
+    n_reclamos = n(),
+    .groups = "drop"
+  )
 
 
 

@@ -100,6 +100,75 @@ ranking_por_circuito <- asd$ranking_principal
 mapa_poligono <- asd$mapa_poligono
 total <- asd$datos_activos
 
+
+### Obtener el ranking de muchos días ---
+
+funcion_calcular_ranking_rango <- function(fecha_inicio,
+                                           fecha_fin,
+                                           historico_estado_diario) {
+  
+  # Aseguro clase Date
+  fecha_inicio <- as.Date(fecha_inicio)
+  fecha_fin    <- as.Date(fecha_fin)
+  
+  # Secuencia de fechas del rango
+  seq_fechas <- seq.Date(from = fecha_inicio,
+                         to   = fecha_fin,
+                         by   = "day")
+  
+  resultados <- list()
+  
+  for (fecha_consulta in seq_fechas) {
+    
+    # Aviso qué día estoy procesando
+    message("Procesando fecha: ", as.character(fecha_consulta))
+    # Si preferís print:
+    # print(paste("Procesando fecha:", as.character(fecha_consulta)))
+    
+    # Filtro el histórico para esa fecha
+    df_informedeldia <- historico_estado_diario %>%
+      filter(Fecha == fecha_consulta)
+    
+    # Si no hay datos para esa fecha, la salto
+    if (nrow(df_informedeldia) == 0) {
+      message("  → Sin datos para esta fecha, se salta.\n")
+      next
+    }
+    
+    # Guardo el resultado en la lista, nombrado por la fecha
+    resultados[[as.character(fecha_consulta)]] <-
+      funcion_calcular_ranking_deldia(
+        fecha_consulta = fecha_consulta,
+        df_informedeldia = df_informedeldia
+      )
+  }
+  
+  return(resultados)
+}
+
+resultados_rango <- funcion_calcular_ranking_rango(
+  fecha_inicio = "2025-09-01",
+  fecha_fin = "2025-10-31",
+  historico_estado_diario = historico_estado_diario
+)
+
+names(resultados_rango) <- as.character(
+  as.Date(as.numeric(names(resultados_rango)), origin = "1970-01-01")
+)
+
+df_informe_diario <- imap_dfr(
+  resultados_rango,
+  ~ .x$datos_activos %>%
+    mutate(Fecha = as.Date(.y))  # .y es el nombre del elemento (la fecha)
+) %>%
+  relocate(Fecha, .before = everything())
+
+df_df_informe_diario_filtrado_UNA_MENOR_100 <- df_informe_diario %>% 
+  filter(UNA <= 100) %>% 
+  group_by(Fecha) %>% 
+  summarise(total = n())
+
+
 ## FIN - Obtener el ranking de determinado dia ----
 
 funcion_agregar_frecuencia

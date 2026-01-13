@@ -1,5 +1,5 @@
 ---
-title: "Resumen diario de recolección"
+title: "Resumen diario de recolecciÃƒÂ³n"
 format:
   html:
     theme: cosmo
@@ -17,10 +17,11 @@ execute:
 library(shiny)
 library(dplyr)
 library(ggplot2)
+library(plotly)
 library(DT)
 library(readxl)
 
-# Ajustá el nombre/ruta si es distinto
+# AjustÃƒÂ¡ el nombre/ruta si es distinto
 ruta_excel <- "salida.xlsx"
 
 if (!file.exists(ruta_excel)) {
@@ -28,7 +29,7 @@ if (!file.exists(ruta_excel)) {
 }
 
 # Hoja DB
-resumen_dia <- read_excel(ruta_excel, sheet = "DB") |>
+resumen_dia <- read_excel(ruta_excel, sheet = "Info_Por_dia") |>
   mutate(
     Fecha = as.Date(Fecha),
     Dia   = as.character(Dia)
@@ -54,11 +55,22 @@ choices = c(
 selected = "Vaciados"
 )
 
-# Filtro por día de la semana
+selectInput(
+inputId = "tipo_grafico",
+label   = "Tipo de grafico",
+choices = c(
+"Linea" = "linea",
+"Barras" = "barras",
+"Area"   = "area"
+),
+selected = "area"
+)
+
+# Filtro por dÃƒÂ­a de la semana
 
 selectInput(
 inputId = "dia_semana",
-label   = "Día de la semana",
+label   = "DÃƒÂ­a de la semana",
 choices = c("Todos", sort(unique(resumen_dia$Dia))),
 selected = "Todos"
 )
@@ -79,13 +91,13 @@ end     = max(resumen_dia$Fecha, na.rm = TRUE)
 ```{r}
 #| panel: fill
 
-h3("Gráfico de evolución")
-plotOutput("grafico")
+h3("GrÃƒÂ¡fico de evoluciÃƒÂ³n")
+plotlyOutput("grafico")
 
 h3("Tabla detallada")
 dataTableOutput("tabla")
 
-h3("Resumen numérico")
+h3("Resumen numÃƒÂ©rico")
 verbatimTextOutput("resumen")
 
 
@@ -96,12 +108,12 @@ verbatimTextOutput("resumen")
 ```{r}
 #| context: server
 
-# Reactivo común para aplicar filtros
+# Reactivo comÃƒÂºn para aplicar filtros
 
 datos_filtrados <- reactive({
 df <- resumen_dia
 
-# filtro por día
+# filtro por dÃƒÂ­a
 
 if (!is.null(input$dia_semana) && input$dia_semana != "Todos") {
 df <- df |> filter(Dia == input$dia_semana)
@@ -120,24 +132,38 @@ Fecha <= input$rango_fechas[2]
 df
 })
 
-# Gráfico
+# GrÃƒÂ¡fico
 
-output$grafico <- renderPlot({
+output$grafico <- renderPlotly({
 req(input$var_y)
 
 df <- datos_filtrados()
 validate(need(nrow(df) > 0, "No hay datos para los filtros seleccionados."))
 
-ggplot(df, aes(x = Fecha, y = .data[[input$var_y]])) +
-geom_line() +
-geom_point() +
+tipo <- input$tipo_grafico
+if (is.null(tipo)) {
+tipo <- "linea"
+}
+
+grafico_base <- ggplot(df, aes(x = Fecha, y = .data[[input$var_y]]))
+
+grafico_combinado <- switch(
+tipo,
+"barras" = grafico_base + geom_col(fill = "#1f78b4"),
+"area" = grafico_base + geom_area(fill = "#1f78b4", alpha = 0.5, color = "#1f78b4", linewidth = 0.8),
+grafico_base + geom_line(color = "#1f78b4", linewidth = 1.2) +
+geom_point(color = "#e31a1c", size = 3)
+)
+
+grafico_final <- grafico_combinado +
 labs(
 x = "Fecha",
 y = input$var_y,
-title = paste("Evolución diaria de", input$var_y)
+title = paste("Evolucion diaria de", input$var_y)
 )
-})
 
+ggplotly(grafico_final, tooltip = c("x", "y", input$var_y))
+})
 # Tabla
 
 output$tabla <- renderDataTable({
@@ -151,7 +177,7 @@ autoWidth = TRUE
 )
 })
 
-# Resumen numérico
+# Resumen numÃƒÂ©rico
 
 output$resumen <- renderPrint({
 df <- datos_filtrados()
@@ -163,4 +189,7 @@ summary(df[, c(
 
 
 ```
+
+
+
 

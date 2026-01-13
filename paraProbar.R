@@ -606,3 +606,62 @@ setiembre <- historico_llenado %>%
   filter(Incidencia == "Contenedor Roto (choque, desfonde, etc.)" | Incidencia == "Fuego") %>% 
   select(Fecha,gid,Circuito,Posicion,Direccion,Incidencia) %>% 
   distinct()
+
+
+
+
+
+### Total contenedores levantados por día ----
+llenado_enero_octubre <- historico_llenado %>% 
+  filter(Fecha >= "2025-01-01" & Fecha < "2025-11-01") %>% 
+  filter(Levantado == "S") %>% 
+  filter(!grepl("^B_0[1-7]$", Circuito_corto)) %>% 
+  group_by(Fecha) %>% 
+  summarise(Total_levantados = n())
+
+# Tu data actual
+ubicaciones_enero_octubre <- historico_ubicaciones %>% 
+  filter(Fecha >= as.Date("2025-01-01") & Fecha < as.Date("2025-11-01")) %>% 
+  filter(!grepl("^B_0[1-7]$", Circuito_corto)) %>% 
+  group_by(Fecha) %>% 
+  summarise(Total_contenedores = n(), .groups = "drop")
+
+# 1) Primer día con datos
+primer_dia <- min(ubicaciones_enero_octubre$Fecha)
+
+# 2) Valor de ese primer día
+valor_primer_dia <- ubicaciones_enero_octubre %>% 
+  filter(Fecha == primer_dia) %>% 
+  pull(Total_contenedores)
+
+# 3) Fechas faltantes desde 2025-01-01 hasta el día anterior
+fechas_faltantes <- tibble(
+  Fecha = seq.Date(from = as.Date("2025-01-01"),
+                   to   = primer_dia - 1,
+                   by   = "day"),
+  Total_contenedores = valor_primer_dia
+)
+
+# 4) Unir y ordenar
+ubicaciones_enero_octubre_completo <- ubicaciones_enero_octubre %>% 
+  bind_rows(fechas_faltantes) %>% 
+  arrange(Fecha)
+
+
+df_unido <- llenado_enero_octubre %>%
+  full_join(ubicaciones_enero_octubre_completo, by = "Fecha")
+
+df_porcentaje <- ubicaciones_enero_octubre_completo %>% 
+  left_join(llenado_enero_octubre, by = "Fecha") %>% 
+  mutate(
+    # Si algún día no hubo levantados, lo tomo como 0
+    Total_levantados = coalesce(Total_levantados, 0L),
+    # Porcentaje de levantados sobre el total de contenedores
+    Porc_levantados = if_else(
+      Total_contenedores > 0,
+      round(100 * Total_levantados / Total_contenedores,2),
+      NA_real_
+    )
+  )
+
+write_xlsx(df_porcentaje, path = "porcentajes.xlsx")
