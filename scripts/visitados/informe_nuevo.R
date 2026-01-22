@@ -695,3 +695,179 @@ semana_resumen <- df_resumen2 %>%
 #   ))
 # 
 # saveWidget(as_widget(p_html), "promedios_semanales.html", selfcontained = TRUE)
+
+
+funcion_df_nuevoinformediario_sincap_porturnos <- function(df_llenado){
+  
+  # Usa "Incidencias" si existe, si no "Incidencia"
+  inc_col <- if ("Incidencias" %in% names(df_llenado)) "Incidencias" else "Incidencia"
+  
+  gol_visitayprogramado_completo_nuevo <- df_llenado %>%
+    mutate(
+      Visitado = case_when(
+        Levantado == "S" ~ "Visitado",
+        is.na(Levantado) ~ "No visitado",
+        Levantado == "N" & .data[[inc_col]] %in% motivos_con_visita ~ "Visitado",
+        Levantado == "N" ~ "No visitado",
+        TRUE ~ NA_character_
+      )
+    ) %>% 
+    filter(Oficina == "IM")
+  
+  # universo fijo de municipios
+  municipios <- c("A","B","C","CH","D","E","F","G")
+  
+  df_resumen_conturno <- gol_visitayprogramado_completo_nuevo %>%
+    mutate(
+      Fecha = as.Date(Fecha),
+      Municipio = toupper(trimws(Municipio))
+    ) %>%
+    group_by(Fecha, Municipio,Turno_levantado) %>%
+    summarise(
+      Programado   = n(),
+      Visitados    = sum(Visitado == "Visitado",    na.rm = TRUE),
+      No_visitados = sum(Visitado == "No visitado", na.rm = TRUE),
+      Vaciados     = sum(Levantado == "S",          na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(No_Vaciados = Visitados - Vaciados) %>%
+    group_by(Fecha) %>%
+    # garantiza que existan siempre los 8 municipios por fecha
+    complete(
+      Municipio = municipios,
+      fill = list(
+        Programado = 0,
+        Visitados = 0,
+        No_visitados = 0,
+        Vaciados = 0,
+        No_Vaciados = 0
+      )
+    ) %>%
+    ungroup() %>%
+    # evita negativos por inconsistencias
+    mutate(No_Vaciados = pmax(0, No_Vaciados)) %>%
+    arrange(Fecha, factor(Municipio, levels = municipios))
+  
+  planificados <- funcion_obtener_planificados()
+  
+  
+  planificados_final_porturno <- planificados %>%
+    mutate(
+      Fecha = as.Date(Fecha),
+      Activos = coalesce(as.integer(Activos), 0L),
+      Inactivos = coalesce(as.integer(Inactivos), 0L)
+    ) %>%
+    group_by(Fecha, Municipio,Id_turno) %>%
+    summarise(
+      Activos = sum(Activos, na.rm = TRUE),
+      Inactivos = sum(Inactivos, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(Planificados = Activos + Inactivos) %>% 
+    arrange(Fecha, Municipio) %>% 
+    mutate(
+      # 1. Creamos la columna con los nombres correspondientes
+      Turno_planificado = case_when(
+        Id_turno == 1 ~ "Matutino",
+        Id_turno == 2 ~ "Vespertino",
+        Id_turno == 3 ~ "Nocturno",
+        TRUE ~ NA_character_  # Para manejar valores inesperados
+      ),
+      # 2. La convertimos en factor con el orden específico
+      Turno_planificado = factor(
+        Turno_planificado, 
+        levels = c("Matutino", "Vespertino", "Nocturno")
+      )
+    )
+  
+  # Tomo solo la columna Planificados desde res_por_fecha_mpio
+  planif_key <- planificados_final_porturno %>%
+    transmute(
+      Fecha = as.Date(Fecha),
+      Municipio = as.character(Municipio),
+      Activos = as.integer(Activos),
+      Turno_planificado = as.factor(Turno_planificado)
+    )
+  
+  df_resumen2_porturno <- df_resumen_conturno %>%
+    mutate(
+      Fecha = as.Date(Fecha),
+      Municipio = as.character(Municipio)
+    ) %>%
+    # Unimos especificando qué columna de la izquierda coincide con la de la derecha
+    left_join(
+      planif_key, 
+      by = c("Fecha", "Municipio", "Turno_levantado" = "Turno_planificado")
+    ) %>%
+    relocate(Activos, .after = Municipio) %>% 
+    rename(Planificados = Activos)
+  
+  df_resumen2_porturno <- df_resumen2_porturno %>% 
+    mutate(Planificados = coalesce(Planificados, 0L)) %>% 
+    arrange(desc(Fecha),Municipio)
+  
+  
+  df_resumen2_porturno <- df_resumen2_porturno %>%
+    # 1. Eliminamos filas donde el turno sea NA para que complete() no las repita
+    filter(!is.na(Turno_levantado)) %>%
+    
+    # 2. Aseguramos que sea factor con niveles fijos
+    mutate(Turno_levantado = factor(Turno_levantado, 
+                                    levels = c("Matutino", "Vespertino", "Nocturno"))) %>%
+    
+    # 3. Completamos la estructura
+    complete(
+      nesting(Fecha, Municipio), 
+      Turno_levantado, 
+      fill = list(
+        Planificados = 0,
+        Programado = 0,
+        Visitados = 0,
+        No_visitados = 0,
+        Vaciados = 0,
+        No_Vaciados = 0
+      )
+    )
+  
+  
+  old <- Sys.getlocale("LC_TIME")
+  try(Sys.setlocale("LC_TIME","es_UY.UTF-8"), silent = TRUE)
+  
+  df_resumen2_porturno <- df_resumen2_porturno %>%
+    mutate(
+      Fecha = as.Date(Fecha),
+      Dia   = format(Fecha, "%A")
+    ) %>%
+    relocate(Dia, .after = Fecha)
+  
+  return(df_resumen2_porturno)
+  
+}
+
+
+prueba <- funcion_df_nuevoinformediario_sincap_porturnos(gol_visitayprogramado_completo)
+
+prueba <- prueba %>% 
+  filter(Fecha >= "2026-01-01")
+
+prueba_adrian <- prueba %>%
+  mutate(
+    # 1. Aseguramos que Fecha sea formato Date
+    Fecha = as.Date(Fecha),
+    
+    # 2. Si el turno es Nocturno, sumamos 1 día
+    Fecha = if_else(Turno_levantado == "Nocturno", Fecha + days(1), Fecha),
+    
+    # 3. Actualizamos la columna Dia basándonos en la nueva Fecha
+    # label = TRUE devuelve el nombre (lunes, martes...), abbr = FALSE el nombre completo
+    Dia = wday(Fecha, label = TRUE, abbr = FALSE)
+  ) %>%
+  # Opcional: convertir Dia a caracteres simples si no lo quieres como factor ordenado
+  mutate(Dia = as.character(Dia))
+
+# 2. Cargar la librería
+library(writexl)
+
+# 3. Exportar el data frame
+# "df" es el nombre de tu objeto en R y "mi_reporte.xlsx" el nombre del archivo
+write_xlsx(prueba_adrian, "prueba2.xlsx")

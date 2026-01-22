@@ -139,3 +139,8 @@
   install.packages("pkgbuild")
   pkgbuild::has_build_tools(debug = TRUE)
   
+  
+  
+  ver <- historico_llenado %>% 
+    filter(Fecha > "2026-01-10") %>% 
+    filter(Circuito == "C_DU_RM_CL_107")

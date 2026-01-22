@@ -1,11 +1,12 @@
 ---
-title: "Cars interactivo"
-format:
-  html:
-    toc: true
-    code-tools: true
-    df-print: paged
+title: "Monitoreo de Visitas - IMM"
+format: 
+  dashboard:
+    orientation: rows
+    theme: cosmo
 ---
+
+
 
 ```{r}
 # Paquetes (descomentar si faltan)
@@ -16,31 +17,38 @@ library(plotly)
 library(DT)
 library(crosstalk)
 
-cars <- as_tibble(datasets::cars) |>
-  mutate(velocidad = speed, distancia = dist)
+prueba_adrian <- readRDS("datos_listos.rds")
 
-sd <- SharedData$new(cars)
+sd <- SharedData$new(prueba_adrian)
 ```
 
-# Controles
+## Column {.sidebar}
 
 ```{r}
-filter_slider("f_speed", "Velocidad", sd, ~velocidad, step = 1)
-filter_slider("f_dist",  "Distancia", sd, ~distancia, step = 5)
-filter_checkbox("f_bins", "Rango de distancia",
-                sd, ~cut(distancia, breaks = c(0,25,50,75,120)),
-                inline = TRUE)
+
+
+filter_select("f_mun", "Municipio", sd, ~Municipio)
+filter_checkbox("f_turno", "Turno de Levantado", sd, ~Turno_levantado, inline = FALSE)
+
 ```
 
 # Dispersión interactiva
 
 ```{r}
-plot_ly(sd,
-        x = ~velocidad, y = ~distancia,
-        type = "scatter", mode = "markers",
-        hovertemplate = "Velocidad: %{x}<br>Distancia: %{y}<extra></extra>") |>
-  layout(xaxis = list(title = "Velocidad (mph)"),
-         yaxis = list(title = "Distancia de frenado (ft)"))
+# Gráfico de barras interactivo
+plot_ly(sd, 
+        x = ~Municipio, 
+        y = ~Visitados, 
+        type = "bar", 
+        name = "Visitados",
+        marker = list(color = '#2c3e50')) %>%
+  add_trace(y = ~Planificados, 
+            name = "Planificados",
+            marker = list(color = '#3498db')) %>%
+  layout(barmode = 'group',
+         xaxis = list(title = ""),
+         yaxis = list(title = "Cantidad"),
+         legend = list(orientation = 'h', y = -0.2))
 ```
 
 # Tabla filtrable
@@ -48,17 +56,23 @@ plot_ly(sd,
 ```{r}
 datatable(sd,
           extensions = "Buttons",
-          options = list(dom = "Bfrtip", buttons = c("copy","csv","excel","print"),
+          options = list(dom = "Bfrtip", 
+                         buttons = c("copy", "csv", "excel", "print"),
                          pageLength = 10),
-          rownames = FALSE)
+          rownames = FALSE,
+          caption = "Usa los filtros superiores para actualizar esta tabla automáticamente.")
 ```
 
 # Resumen dinámico
 
 ```{r}
-sd$data(withSelection = TRUE) |>
-  summarise(n = n(),
-            vel_prom = round(mean(velocidad),2),
-            dist_prom = round(mean(distancia),2)) |>
+# Este resumen se actualiza al filtrar (gracias a crosstalk)
+sd$data(withSelection = TRUE) %>%
+  summarise(
+    Registros = n(),
+    Total_Planificados = sum(Planificados, na.rm = TRUE),
+    Total_Visitados = sum(Visitados, na.rm = TRUE),
+    Efectividad = round((sum(Visitados, na.rm = TRUE) / sum(Planificados, na.rm = TRUE)) * 100, 2)
+  ) %>%
   knitr::kable()
 ```
