@@ -51,6 +51,7 @@ funcion_obtener_planificados <- function(){
   
   planificacion <- read_excel(
     "scripts/visitados/planificacion.xlsx",
+    #"planificacion.xlsx",
     sheet = "historico",
     range = cell_cols("A:L"))
   
@@ -696,7 +697,7 @@ semana_resumen <- df_resumen2 %>%
 # 
 # saveWidget(as_widget(p_html), "promedios_semanales.html", selfcontained = TRUE)
 
-
+# df_llenado <- gol_visitayprogramado_completo
 funcion_df_nuevoinformediario_sincap_porturnos <- function(df_llenado){
   
   # Usa "Incidencias" si existe, si no "Incidencia"
@@ -840,15 +841,59 @@ funcion_df_nuevoinformediario_sincap_porturnos <- function(df_llenado){
     ) %>%
     relocate(Dia, .after = Fecha)
   
+  df_llenado
+  
+  
+  
   return(df_resumen2_porturno)
   
 }
 
+#####
+
+funcion_contar_viajes_por_diayturno <- function(df_llenado){
+  
+  df_llenado_nuevo <- df_llenado %>% 
+    filter(Oficina == "IM") %>% 
+    filter(Fecha > "2026-01-01")
+  
+  df_gol_contenedores <- df_llenado_nuevo %>%
+    group_by(Fecha,Turno_levantado,Id_viaje_GOL) %>%
+    summarise(Contenedores = n(), .groups = "drop")
+  
+  df_gol_camiones <- df_llenado_nuevo %>% 
+    group_by(Fecha,Turno_levantado) %>% 
+    summarise(Camiones = n_distinct(Id_viaje_GOL))
+  
+  return(df_gol_camiones)
+  
+}
+
+total_viajes <- funcion_contar_viajes_por_diayturno(gol_visitayprogramado_completo)
+
+total_viajes_criterioadrian <- total_viajes %>%
+  mutate(
+    # 1. Aseguramos que Fecha sea formato Date
+    Fecha = as.Date(Fecha),
+    
+    # 2. Si el turno es Nocturno, sumamos 1 día
+    Fecha = if_else(Turno_levantado == "Nocturno", Fecha + days(1), Fecha),
+    
+    # 3. Actualizamos la columna Dia basándonos en la nueva Fecha
+    # label = TRUE devuelve el nombre (lunes, martes...), abbr = FALSE el nombre completo
+    Dia = wday(Fecha, label = TRUE, abbr = FALSE)
+  ) %>%
+  # Opcional: convertir Dia a caracteres simples si no lo quieres como factor ordenado
+  mutate(Dia = as.character(Dia))
+
+saveRDS(total_viajes_criterioadrian, "viajespordiayturno.rds")
+
+####
 
 prueba <- funcion_df_nuevoinformediario_sincap_porturnos(gol_visitayprogramado_completo)
 
 prueba <- prueba %>% 
-  filter(Fecha >= "2026-01-01")
+  filter(Fecha > "2026-01-01")
 
 prueba_adrian <- prueba %>%
   mutate(
@@ -870,4 +915,37 @@ library(writexl)
 
 # 3. Exportar el data frame
 # "df" es el nombre de tu objeto en R y "mi_reporte.xlsx" el nombre del archivo
-write_xlsx(prueba_adrian, "prueba2.xlsx")
+# write.xlsx(prueba_adrian, file = "datos_vaciados_camiones.xlsx", sheetName = "vaciados")
+
+saveRDS(prueba_adrian, "datos_listos.rds")
+
+
+
+# Creamos una lista con los data frames y los nombres de las hojas
+hojas_a_guardar <- list(
+  "vaciados" = prueba_adrian,
+  "resumen_circuitos" = total_viajes_criterioadrian
+)
+
+# Esto crea un solo Excel con dos pestañas
+write.xlsx(hojas_a_guardar, file = "datos_vaciados_camiones.xlsx")
+
+
+
+
+
+
+
+
+
+
+
+### Ahora agrupar por viaje por turno
+
+ver <- gol_visitayprogramado_completo %>% 
+  filter(Levantado == "S") %>% 
+  filter(Oficina == "IM") %>% 
+  group_by(Fecha,Turno_levantado,Id_viaje_GOL) %>% 
+  summarise(total = n()) %>% 
+  filter(Fecha > "2026-01-01")
+
