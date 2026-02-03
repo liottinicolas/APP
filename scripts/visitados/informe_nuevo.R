@@ -855,7 +855,8 @@ funcion_contar_viajes_por_diayturno <- function(df_llenado){
   
   df_llenado_nuevo <- df_llenado %>% 
     filter(Oficina == "IM") %>% 
-    filter(Fecha > "2026-01-01")
+    filter(Fecha > "2026-01-01") %>% 
+    filter(Levantado == "S")
   
   df_gol_contenedores <- df_llenado_nuevo %>%
     group_by(Fecha,Turno_levantado,Id_viaje_GOL) %>%
@@ -933,11 +934,61 @@ write.xlsx(hojas_a_guardar, file = "datos_vaciados_camiones.xlsx")
 
 
 
+######
 
+promedios_mensuales_concap <- gol_visitayprogramado_completo %>%
+  filter(Levantado == "S") %>%
+# 1. Contamos cuántas filas (incidencias) hay en cada día
+count(Fecha, name = "total_del_dia") %>%
+  # 2. Agrupamos esos totales por mes
+  group_by(Mes = floor_date(Fecha, "month")) %>%
+  # 3. Calculamos el promedio de esos totales diarios
+  summarise(promedio_diario_mensual = mean(total_del_dia, na.rm = TRUE))
 
+promedios_mensuales_concap_porturnos <- gol_visitayprogramado_completo %>%
+  filter(Levantado == "S") %>%
+  # PASO 1: Contamos cuántas filas hay en cada combinación de día y turno
+  # Esto genera una columna 'n' con el total de ese día/turno
+  count(Fecha, Turno_levantado) %>%
+  
+  # PASO 2: Ahora sí, agrupamos por Mes y Turno al mismo tiempo
+  # floor_date convierte "2026-01-15" en "2026-01-01"
+  group_by(Mes = floor_date(Fecha, "month"), Turno_levantado) %>%
+  
+  # PASO 3: Calculamos el promedio de esos conteos diarios
+  summarise(
+    promedio_diario_mensual = mean(n, na.rm = TRUE),
+    total_filas_mes = sum(n), # Opcional: total de filas en todo el mes
+    .groups = "drop"
+  )
 
+promedios_mensuales_sincap <- gol_visitayprogramado_completo %>%
+  filter(Levantado == "S") %>%
+  filter(Oficina == "IM") %>% 
+  # 1. Contamos cuántas filas (incidencias) hay en cada día
+  count(Fecha, name = "total_del_dia") %>%
+  # 2. Agrupamos esos totales por mes
+  group_by(Mes = floor_date(Fecha, "month")) %>%
+  # 3. Calculamos el promedio de esos totales diarios
+  summarise(promedio_diario_mensual = mean(total_del_dia, na.rm = TRUE))
 
-
+promedios_mensuales_sincap_porturnos <- gol_visitayprogramado_completo %>%
+  filter(Levantado == "S") %>%
+  filter(Oficina == "IM") %>% 
+  # PASO 1: Contamos cuántas filas hay en cada combinación de día y turno
+  # Esto genera una columna 'n' con el total de ese día/turno
+  count(Fecha, Turno_levantado) %>%
+  
+  # PASO 2: Ahora sí, agrupamos por Mes y Turno al mismo tiempo
+  # floor_date convierte "2026-01-15" en "2026-01-01"
+  group_by(Mes = floor_date(Fecha, "month"), Turno_levantado) %>%
+  
+  # PASO 3: Calculamos el promedio de esos conteos diarios
+  summarise(
+    promedio_diario_mensual = mean(n, na.rm = TRUE),
+    total_filas_mes = sum(n), # Opcional: total de filas en todo el mes
+    .groups = "drop"
+  )
 
 
 ### Ahora agrupar por viaje por turno
@@ -948,4 +999,18 @@ ver <- gol_visitayprogramado_completo %>%
   group_by(Fecha,Turno_levantado,Id_viaje_GOL) %>% 
   summarise(total = n()) %>% 
   filter(Fecha > "2026-01-01")
+
+
+
+
+ubicaciones <- historico_ubicaciones %>% 
+  filter(Fecha == "2026-02-01")
+
+dfr <- historico_DFR_ubicaciones %>% 
+  filter(Fecha == "2026-02-01")
+
+
+
+
+
 

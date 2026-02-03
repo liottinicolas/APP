@@ -665,3 +665,11 @@ df_porcentaje <- ubicaciones_enero_octubre_completo %>%
   )
 
 write_xlsx(df_porcentaje, path = "porcentajes.xlsx")
+
+
+
+
+
+
+
+

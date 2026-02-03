@@ -156,7 +156,7 @@ datatable(sd_tabla,
           caption = "Usa los filtros superiores para actualizar esta tabla automáticamente.")
 ```
 
-# Disponibilidad de camiones
+# Datos camiones
 
 ## Columna de Filtros {.sidebar width="250px"}
 
@@ -177,9 +177,11 @@ filter_checkbox(
 ```{r}
 #| title: "Detalle de Camiones por Turno"
 
-datatable(sd_tabla_camiones, 
-          rownames = FALSE,
-          options = list(pageLength = 20, dom = 'tip'))
+datatable(sd_tabla_camiones,
+                    options = list(dom = "Bfrtip", 
+                         buttons = c("copy", "csv", "excel", "print"),
+                         pageLength = 30),
+          rownames = FALSE)
 ```
 
 ### Gráfico
@@ -206,9 +208,14 @@ plot_ly(sd_grafica_camiones,
         )) %>%
   layout(
     barmode = "stack", # Esto agrupa los turnos en la misma barra
-    xaxis = list(title = "Día", type = "date", tickformat = "%d-%m"),
+    xaxis = list(title = "Día", 
+                 type = "date", 
+                 tickformat = "%d/%m/%y",
+                 dtick = 86400000,
+                 tickangle = -45 ),
     yaxis = list(title = "Cantidad de Camiones"),
     legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
   )
+
 
 ```
