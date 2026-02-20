@@ -1,0 +1,260 @@
+---
+title: "Reporte contenedores vaciados por turno"
+format: 
+  dashboard:
+    orientation: columns
+    theme: cosmo
+project:
+  output-dir: docs
+---
+
+```{r}
+# Paquetes (descomentar si faltan)
+# install.packages(c("dplyr","plotly","DT","crosstalk"))
+
+library(dplyr)
+library(plotly)
+library(DT)
+library(crosstalk)
+library(lubridate)
+library(tidyr)
+
+
+prueba_adrian <- readRDS("informediarionuevo_total_soloim_criterioadrian.rds")
+total_viajesporturnoydia <- readRDS("total_viajesporcamionsoloim_criterioadrian.rds")
+
+total_viajesporturnoydia <- total_viajesporturnoydia %>% 
+  filter(Fecha <= Sys.Date()-1)
+
+# Usamos SharedData para que responda a los filtros si tienes un sidebar
+sd_grafica_camiones <- SharedData$new(total_viajesporturnoydia)
+
+# Preparamos los datos para la tabla (Turnos como columnas)
+tabla_interactiva <- total_viajesporturnoydia %>%
+  select(Fecha, Turno_levantado, Camiones) %>%
+  pivot_wider(names_from = Turno_levantado, values_from = Camiones, values_fill = 0) %>%
+  mutate(Total = Matutino + Vespertino + Nocturno)
+
+# Usamos SharedData para que responda a los filtros si tienes un sidebar
+sd_tabla_camiones <- SharedData$new(tabla_interactiva)
+
+
+# 1. Forzamos la conversión limpia
+prueba_adrian$Fecha <- as.Date(as.character(prueba_adrian$Fecha))
+
+# 2. Verificamos que no haya errores (debería decir "Date")
+# print(class(prueba_adrian$Fecha)) 
+
+# 1. Agrupamos por Fecha y Turno para sumar los vaciados
+df_agrupado <- prueba_adrian %>%
+  group_by(Fecha, Turno_levantado) %>%
+  summarise(Vaciados_Suma = sum(Vaciados, na.rm = TRUE), .groups = "drop") %>% 
+    filter(Fecha <= Sys.Date()-1)
+
+  
+
+# 2. Ahora creamos el SharedData con los datos ya sumados
+sd <- SharedData$new(df_agrupado)
+
+# 3. RECIÉN AHORA creamos el objeto para crosstalk
+#sd <- SharedData$new(prueba_adrian)
+
+
+# 1. Aseguramos formato de fecha y orden de turnos
+datos_resumen <- prueba_adrian %>%
+  mutate(
+    Turno_levantado = factor(Turno_levantado, levels = c("Matutino", "Vespertino", "Nocturno"))
+  ) %>%
+  # 2. Agrupamos y sumamos los vaciados
+  group_by(Fecha, Turno_levantado) %>%
+  summarise(Total_Vaciados = sum(Vaciados, na.rm = TRUE), .groups = "drop") %>%
+  # 3. Pasamos los turnos a columnas (Pivot)
+  pivot_wider(names_from = Turno_levantado, values_from = Total_Vaciados, values_fill = 0) %>%
+  # 4. Calculamos el Total General por fila
+  mutate(`Total general` = Matutino + Vespertino + Nocturno) %>%
+  # 5. Ordenamos por fecha
+  arrange(Fecha) %>% 
+  filter(Fecha <= Sys.Date()-1)
+
+sd_tabla <- SharedData$new(datos_resumen)
+
+
+```
+
+# Gráficos.
+
+## Columna de Filtros {.sidebar width="250px"}
+
+```{r}
+# Filtro de Fecha (Asegúrate de que sd use la columna Fecha como Date)
+filter_slider(
+  id = "f_fecha", 
+  label = "Seleccione el período:",
+  width = "80%",
+  sharedData = sd, 
+  column = ~Fecha
+)
+
+filter_checkbox(
+  id = "f_turno", 
+  label = "Turno de Levantado", 
+  sharedData = sd, 
+  group = ~Turno_levantado, 
+  inline = FALSE
+)
+```
+
+## Resultados principales {.fill}
+
+```{r}
+
+# Definimos los colores exactos de tu imagen
+# Definimos los colores exactos
+colores_turno <- c("Matutino" = "#FFFF00", 
+                   "Vespertino" = "#FFCC00", 
+                   "Nocturno" = "#4D4D4D")
+
+# Calcular totales por día para mostrar encima de las barras
+totales_vaciados <- df_agrupado %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Vaciados_Suma, na.rm = TRUE), .groups = "drop")
+
+# Calculamos los límites basados en tus datos ya filtrados
+rango_x <- c(min(df_agrupado$Fecha)-1, max(df_agrupado$Fecha)+1)
+
+plot_ly() %>% 
+  add_trace(data = sd, 
+            x = ~Fecha, 
+            y = ~Vaciados_Suma,  # Usamos la nueva columna sumada
+            color = ~Turno_levantado, 
+            colors = colores_turno,
+            type = "bar", 
+            text = ~Vaciados_Suma, # Texto dentro de la barra
+            textposition = 'inside',
+            hovertemplate = paste(
+              "<b>Fecha:</b> %{x|%d-%m-%Y}<br>",
+              "<b>Turno:</b> %{fullData.name}<br>",
+              "<b>Total del Turno:</b> %{y}<br>", # Aquí %{y} ahora sí es la suma
+              "<extra></extra>"
+            )) %>%
+  add_trace(data = totales_vaciados,
+            x = ~Fecha,
+            y = ~Total,
+            type = "scatter",
+            mode = "text",
+            text = ~Total,
+            textposition = "top center",
+            textfont = list(color = "black", size = 12),
+            showlegend = FALSE,
+            hoverinfo = "skip",
+            inherit = FALSE) %>%
+  layout(
+    barmode = "stack", 
+    xaxis = list(
+      title = "Fecha",
+      type = "date", 
+      tickformat = "%d/%m/%y",
+      # Mostrar cada 1 día (86400000 ms)
+      dtick = 86400000,
+      tickangle = -45,        # Inclina el texto para que quepan más fechas
+      range = rango_x
+    ),
+    yaxis = list(title = "Suma de contenedores"),
+    margin = list(t = 50)
+  )
+```
+
+# Tabla de datos
+
+```{r}
+
+datatable(sd_tabla,
+          extensions = "Buttons",
+          options = list(dom = "Bfrtip", 
+                         buttons = c("copy", "csv", "excel", "print"),
+                         pageLength = 50),
+          rownames = FALSE,
+          caption = "Usa los filtros superiores para actualizar esta tabla automáticamente.")
+```
+
+# Datos camiones
+
+## Columna de Filtros {.sidebar width="250px"}
+
+```{r}
+
+filter_checkbox(
+  id = "f_turno", 
+  label = "Turno de Levantado", 
+  sharedData = sd_grafica_camiones, 
+  group = ~Turno_levantado, 
+  inline = FALSE
+)
+```
+
+## Columna Principal
+
+### Camiones utilizados
+```{r}
+#| title: "Detalle de Camiones por Turno"
+
+datatable(sd_tabla_camiones,
+                    options = list(dom = "Bfrtip", 
+                         buttons = c("copy", "csv", "excel", "print"),
+                         pageLength = 30),
+          rownames = FALSE)
+```
+
+### Gráfico
+
+```{r}
+
+#| title: "Gráfico de Camiones"
+
+# Definimos los colores
+colores_turno <- c("Matutino" = "#FFFF00", 
+                   "Vespertino" = "#FFCC00", 
+                   "Nocturno" = "#4D4D4D")
+
+# Calcular totales por día para mostrar encima de las barras
+totales_camiones <- total_viajesporturnoydia %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Camiones, na.rm = TRUE), .groups = "drop")
+
+plot_ly() %>% 
+  add_trace(data = sd_grafica_camiones, 
+            x = ~Fecha, 
+            y = ~Camiones, 
+            color = ~Turno_levantado, 
+            colors = colores_turno,
+            type = "bar",
+            hovertemplate = paste(
+              "<b>Fecha:</b> %{x}<br>",
+              "<b>Turno:</b> %{fullData.name}<br>",
+              "<b>Camiones:</b> %{y}<extra></extra>"
+            )) %>%
+  add_trace(data = totales_camiones,
+            x = ~Fecha,
+            y = ~Total,
+            type = "scatter",
+            mode = "text",
+            text = ~Total,
+            textposition = "top center",
+            textfont = list(color = "black", size = 12),
+            showlegend = FALSE,
+            hoverinfo = "skip",
+            inherit = FALSE) %>%
+  layout(
+    barmode = "stack", # Esto agrupa los turnos en la misma barra
+    xaxis = list(title = "Día", 
+                 type = "date", 
+                 tickformat = "%d/%m/%y",
+                 dtick = 86400000,
+                 tickangle = -45 ),
+    yaxis = list(title = "Cantidad de Camiones"),
+    legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+    margin = list(t = 40)
+  )
+
+
+```

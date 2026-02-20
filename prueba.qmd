@@ -114,20 +114,37 @@ colores_turno <- c("Matutino" = "#FFFF00",
                    "Vespertino" = "#FFCC00", 
                    "Nocturno" = "#4D4D4D")
 
-plot_ly(sd, 
-        x = ~Fecha, 
-        y = ~Vaciados_Suma,  # Usamos la nueva columna sumada
-        color = ~Turno_levantado, 
-        colors = colores_turno,
-        type = "bar", 
-        text = ~Vaciados_Suma, # Texto dentro de la barra
-        textposition = 'inside',
-        hovertemplate = paste(
-          "<b>Fecha:</b> %{x|%d-%m-%Y}<br>",
-          "<b>Turno:</b> %{fullData.name}<br>",
-          "<b>Total del Turno:</b> %{y}<br>", # Aquí %{y} ahora sí es la suma
-          "<extra></extra>"
-        )) %>%
+# Calcular totales por día para mostrar encima de las barras
+totales_vaciados <- df_agrupado %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Vaciados_Suma, na.rm = TRUE), .groups = "drop")
+
+plot_ly() %>% 
+  add_trace(data = sd, 
+            x = ~Fecha, 
+            y = ~Vaciados_Suma,  # Usamos la nueva columna sumada
+            color = ~Turno_levantado, 
+            colors = colores_turno,
+            type = "bar", 
+            text = ~Vaciados_Suma, # Texto dentro de la barra
+            textposition = 'inside',
+            hovertemplate = paste(
+              "<b>Fecha:</b> %{x|%d-%m-%Y}<br>",
+              "<b>Turno:</b> %{fullData.name}<br>",
+              "<b>Total del Turno:</b> %{y}<br>", # Aquí %{y} ahora sí es la suma
+              "<extra></extra>"
+            )) %>%
+  add_trace(data = totales_vaciados,
+            x = ~Fecha,
+            y = ~Total,
+            type = "scatter",
+            mode = "text",
+            text = ~Total,
+            textposition = "top center",
+            textfont = list(color = "black", size = 12),
+            showlegend = FALSE,
+            hoverinfo = "skip",
+            inherit = FALSE) %>%
   layout(
     barmode = "stack", 
     xaxis = list(
@@ -195,17 +212,34 @@ colores_turno <- c("Matutino" = "#FFFF00",
                    "Vespertino" = "#FFCC00", 
                    "Nocturno" = "#4D4D4D")
 
-plot_ly(sd_grafica_camiones, 
-        x = ~Fecha, 
-        y = ~Camiones, 
-        color = ~Turno_levantado, 
-        colors = colores_turno,
-        type = "bar",
-        hovertemplate = paste(
-          "<b>Fecha:</b> %{x}<br>",
-          "<b>Turno:</b> %{fullData.name}<br>",
-          "<b>Camiones:</b> %{y}<extra></extra>"
-        )) %>%
+# Calcular totales por día para mostrar encima de las barras
+totales_camiones <- total_viajesporturnoydia %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Camiones, na.rm = TRUE), .groups = "drop")
+
+plot_ly() %>% 
+  add_trace(data = sd_grafica_camiones, 
+            x = ~Fecha, 
+            y = ~Camiones, 
+            color = ~Turno_levantado, 
+            colors = colores_turno,
+            type = "bar",
+            hovertemplate = paste(
+              "<b>Fecha:</b> %{x}<br>",
+              "<b>Turno:</b> %{fullData.name}<br>",
+              "<b>Camiones:</b> %{y}<extra></extra>"
+            )) %>%
+  add_trace(data = totales_camiones,
+            x = ~Fecha,
+            y = ~Total,
+            type = "scatter",
+            mode = "text",
+            text = ~Total,
+            textposition = "top center",
+            textfont = list(color = "black", size = 12),
+            showlegend = FALSE,
+            hoverinfo = "skip",
+            inherit = FALSE) %>%
   layout(
     barmode = "stack", # Esto agrupa los turnos en la misma barra
     xaxis = list(title = "Día", 
@@ -214,7 +248,8 @@ plot_ly(sd_grafica_camiones,
                  dtick = 86400000,
                  tickangle = -45 ),
     yaxis = list(title = "Cantidad de Camiones"),
-    legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+    legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+    margin = list(t = 40)
   )
 
 

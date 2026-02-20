@@ -1,6 +1,6 @@
 ---
 title: "Reportes diarios de apoyo a la programación operativa"
-date: "2026-02-03"
+date: "2026-02-19"
 format: 
   pdf:
     toc: false
@@ -25,6 +25,7 @@ library(purrr)
 library(openxlsx)
 library(knitr)
 library(kableExtra)
+library(here)
 
 
 # -------------------------------------------------------------------------------------
@@ -187,7 +188,17 @@ detalle_at <- datos_mayora3dias %>%
   arrange(Municipio, atraso_fact, desc(cantidad)) %>%
   select(-atraso_fact) # Quitamos el auxiliar de orden
 
-
+# --- DETALLE DE ATRASOS ---
+detalle_at <- detalle_at %>%
+  bind_rows(
+    summarise(., 
+              Municipio = "TOTAL", 
+              atraso = "", 
+              Circuito = "", 
+              cantidad = sum(cantidad, na.rm = TRUE), # AQUÍ SUMAMOS
+              tramos_posicion = "", 
+              fecha_levante = "")
+  )
 
 
 
@@ -205,7 +216,14 @@ resumen_no_esta <- no_esta %>%
   ) %>%
   arrange(desc(cantidad))
 
-
+# --- RESUMEN NO ESTÁ ---
+resumen_no_esta <- resumen_no_esta %>%
+  bind_rows(
+    summarise(., 
+              Circuito = "TOTAL", 
+              cantidad = sum(cantidad, na.rm = TRUE), 
+              tramos_posicion = "")
+  )
 
 
 
@@ -215,17 +233,31 @@ resumen_no_esta <- no_esta %>%
 
 grua_data <- datos %>% filter(`Motivo No Levante` %in% MOTIVOS_GRUA)
 
+# --- PROCESAMIENTO RESUMEN GRÚA ---
 resumen_grua <- grua_data %>%
   group_by(Circuito) %>%
   summarise(
     suma_una = sum(`% de acumulación (UNA)`, na.rm = TRUE),
     cantidad = n(),
     tramos_posicion = compactar_tramos(Posición),
-    # Aplicamos el formato solicitado: dd/mm/yy
     fecha_ult_levante_mas_vieja = format(min(`Fecha Último Levante`, na.rm = TRUE), "%d/%m/%y"),
     .groups = "drop"
   ) %>%
   arrange(desc(suma_una))
+
+# --- AGREGAR FILA DE TOTAL ---
+resumen_grua <- resumen_grua %>%
+  bind_rows(
+    summarise(., 
+      Circuito = "TOTAL", 
+      suma_una = NA,        # Esto genera el NA que ves
+      cantidad = sum(cantidad, na.rm = TRUE), 
+      tramos_posicion = "", # Vacío para que no moleste
+      fecha_ult_levante_mas_vieja = "" # Vacío
+    )
+  ) %>%
+  # PASO CLAVE: Convertir la columna suma_una a texto para poder quitar el NA
+  mutate(suma_una = ifelse(Circuito == "TOTAL", "", as.character(suma_una)))
 
 # Detalle individual para la operativa de grúa
 listado_grua_detalle <- grua_data %>%
@@ -251,7 +283,128 @@ resumen_fuego <- fuego_data %>%
   ) %>%
   arrange(desc(cantidad))
 
+# --- RESUMEN FUEGO ---
+resumen_fuego <- resumen_fuego %>%
+  bind_rows(
+    summarise(., 
+              Circuito = "TOTAL", 
+              cantidad = sum(cantidad, na.rm = TRUE), 
+              tramos_posicion = "")
+  )
 
+
+
+### LIstado de no esta mas ubi
+ruta_proyecto <- here()
+## Cargo el historico llenado.
+ruta_base <- file.path("scripts/db", "GOL_reportes")
+ruta_RDS_datos <- file.path(ruta_proyecto, ruta_base, paste0("historico_", "llenadoGol", ".rds"))
+gol_visitayprogramado <- readRDS(ruta_RDS_datos)
+gol_visitayprogramado_completo <- gol_visitayprogramado %>%
+  mutate(
+    Oficina = ifelse(
+      grepl("^B_0?[1-7](\\b|$)", Circuito_corto),
+      "Fideicomiso", "IM"
+    )
+  ) %>%
+  arrange(desc(Fecha)) %>%
+  filter(Fecha >= "2025-03-03")
+
+snap_no_esta_attrs <- no_esta %>%
+  select(GID, Circuito, Posición, Ubicación) %>%
+  distinct(GID, .keep_all = TRUE)
+
+gids_no_esta <- snap_no_esta_attrs$GID %>% as.character() %>% str_trim()
+gids_no_esta <- gids_no_esta[gids_no_esta != ""]
+
+library(janitor)
+
+# En lugar de: hist <- norm_cols(df_final)
+gol_visitayprogramado_completo_arreglado <- gol_visitayprogramado_completo %>%
+  select(-Circuito) %>%
+  rename(Circuito = Circuito_corto)
+hist <- gol_visitayprogramado_completo_arreglado %>% clean_names()
+
+
+req <- c("gid","circuito","posicion","incidencia","fecha_hora_pasaje","fecha")
+faltan_hist <- setdiff(req, names(hist))
+if (length(faltan_hist) > 0) stop("Faltan columnas en df_final: ", paste(faltan_hist, collapse=", "))
+
+snapshot_ts <- Sys.time()
+
+normalizar_txt <- function(s) {
+  if (all(is.na(s))) return("")
+  s <- toupper(strip_accents(as.character(s)))
+  s <- str_replace_all(s, "\\s+", " ")
+  str_trim(s)
+}
+
+strip_accents <- function(x) {
+  if (is.null(x)) return("")
+  x <- as.character(x)
+  x <- stringi::stri_trans_general(x, "Latin-ASCII")
+  x
+}
+
+NO_ESTA_KEYS_NORM <- c("NO ESTA (20)", "CONTENEDOR NO ESTA", "NO ESTA")
+
+
+hist <- hist %>%
+  mutate(
+    gid = str_trim(as.character(gid)),
+    circuito = str_trim(replace_na(as.character(circuito), "")),
+    posicion = suppressWarnings(as.numeric(posicion)),
+    motivo_no_levante = str_trim(replace_na(as.character(incidencia), "")),
+    motivo_norm = normalizar_txt(incidencia),
+    fecha_pasaje_dt = suppressWarnings(ymd_hms(fecha_hora_pasaje, quiet=TRUE, tz="UTC"))
+  ) %>%
+  filter(gid %in% gids_no_esta) %>%
+  #filter(!(circuito %in% EXCLUIR_CIRCUITOS_ATRASO)) %>%
+  filter(!is.na(fecha_pasaje_dt) & fecha_pasaje_dt <= snapshot_ts) %>%
+  arrange(gid, fecha_pasaje_dt)
+
+
+detalle_no_esta <- if (nrow(hist) == 0) {
+  tibble(gid=character(), duracion_dias=double(), circuito=character(), posicion=double(), ubicacion=character())
+} else {
+  hist2 <- hist %>%
+    group_by(gid) %>%
+    mutate(
+      en_no_esta = motivo_norm %in% NO_ESTA_KEYS_NORM,
+      prev = lag(en_no_esta, default = FALSE),
+      entran = (!prev) & en_no_esta,
+      epi_id = cumsum(entran)
+    ) %>%
+    ungroup()
+
+  ult <- hist2 %>%
+    group_by(gid) %>%
+    slice_tail(n=1) %>%
+    ungroup() %>%
+    select(gid, ts_ultimo_real = fecha_pasaje_dt, en_no_esta, epi_id)
+
+  ult_en <- ult %>% filter(en_no_esta)
+
+  inicio_epi <- hist2 %>%
+    filter(en_no_esta) %>%
+    inner_join(ult_en %>% select(gid, epi_id), by=c("gid","epi_id")) %>%
+    group_by(gid, epi_id) %>%
+    summarise(inicio_no_esta = min(fecha_pasaje_dt), .groups="drop") %>%
+    mutate(duracion_dias = as.numeric(difftime(snapshot_ts, inicio_no_esta, units="days")))
+
+# 1. Aseguramos que ambos tengan el mismo tipo (texto)
+inicio_epi <- inicio_epi %>% 
+  mutate(gid = as.character(gid))
+
+snap_no_esta_attrs <- snap_no_esta_attrs %>% 
+  mutate(GID = as.character(GID))
+
+# 2. Hacemos el join vinculando las columnas aunque tengan nombres distintos
+detalle_no_esta <- inicio_epi %>%
+  select(gid, duracion_dias) %>%
+  left_join(snap_no_esta_attrs, by = c("gid" = "GID")) %>% 
+  arrange(desc(duracion_dias))
+}
 ```
 
 ### Contenedores con acumulación mayor a 3 días por municipio {.unnumbered}
@@ -301,7 +454,8 @@ detalle_at %>%
                 full_width = F,
                 position = "center") %>%
   row_spec(0, bold = T, align = "c") %>% 
-  column_spec(5, width = "7cm") # Esto evita el desborde a la derecha
+  column_spec(5, width = "7cm") %>% # Esto evita el desborde a la derecha 
+  row_spec(nrow(detalle_at), bold = T, background = "#DCE6F1") # Resalta la última fila
 ```
 
 \newpage
@@ -316,7 +470,8 @@ resumen_grua %>%
       caption = "Resumen de Grua") %>%
   kable_styling(latex_options = c("striped", "repeat_header"),
                 font_size = 11) %>% # Usar repeat_header siempre
-  column_spec(4, width = "7cm") # Ajuste de ancho para Tramos Posición
+  column_spec(4, width = "7cm") %>% # Ajuste de ancho para Tramos Posición 
+  row_spec(nrow(resumen_grua), bold = T, background = "#DCE6F1") # Resalta la última fila
 
 ```
 
@@ -363,7 +518,8 @@ resumen_no_esta %>%
   ) %>%
   row_spec(0, bold = T) %>%
   # ESTA LÍNEA ES LA QUE EVITA QUE SE SALGA DEL MARGEN:
-  column_spec(3, width = "9cm") # Fuerza el salto de línea en los tramos largos
+  column_spec(3, width = "9cm") %>%  # Fuerza el salto de línea en los tramos largos
+    row_spec(nrow(resumen_no_esta), bold = T, background = "#DCE6F1") # Resalta la última fila
 
 ```
 
@@ -379,26 +535,47 @@ resumen_fuego %>%
       caption = "Resumen de Fuego") %>%
   kable_styling(latex_options = c("striped", "repeat_header"),
                 font_size = 11) %>% # Usar repeat_header siempre
-  column_spec(4, width = "7cm") # Ajuste de ancho para Tramos Posición
+  column_spec(4, width = "7cm") %>%  # Ajuste de ancho para Tramos Posición
+  row_spec(nrow(resumen_fuego), bold = T, background = "#DCE6F1") # Resalta la última fila
 
 ```
+
+\newpage
+
+
+```{r}
+#| echo: false
+detalle_no_esta %>%
+  kbl(booktabs = T,
+      longtable = T, 
+      align = "ccccc", # Ajusté a 5 "c" porque tienes 5 columnas
+      col.names = c("GID", "Dias", "Circuito", "Posición", "Direccion"),
+      caption = "Detalle no esta") %>%
+  kable_styling(latex_options = c("striped", "repeat_header", "scale_down"), # <-- AGREGADO scale_down
+                font_size = 9) %>% 
+  column_spec(5, width = "7cm") %>% # Cambié a columna 5 que es "Direccion"
+  row_spec(nrow(detalle_no_esta), bold = T, background = "#DCE6F1")
+
+```
+
 
 ```{r}
 #| echo: false
 
 library(readODS)
-
-# Definir el nombre del archivo de salida
-archivo_reporte <- "Reporte_Tablas_Operativa.ods"
-
-# Guardar la primera tabla (crea el archivo)
-write_ods(tabla_final, path = archivo_reporte, sheet = "Resumen_Atrasos")
-
-# Agregar las demás tablas al mismo archivo (usa append = TRUE)
-write_ods(detalle_at, path = archivo_reporte, sheet = "Detalle_Atrasos", append = TRUE)
-write_ods(resumen_grua, path = archivo_reporte, sheet = "Resumen_Grua", append = TRUE)
-write_ods(resumen_no_esta, path = archivo_reporte, sheet = "No_Esta", append = TRUE)
-write_ods(resumen_fuego, path = archivo_reporte, sheet = "Fuego", append = TRUE)
+# 
+# # Definir el nombre del archivo de salida
+# archivo_reporte <- "Reporte_Tablas_Operativa.ods"
+# 
+# # Guardar la primera tabla (crea el archivo)
+# write_ods(tabla_final, path = archivo_reporte, sheet = "Resumen_Atrasos")
+# 
+# # Agregar las demás tablas al mismo archivo (usa append = TRUE)
+# write_ods(detalle_at, path = archivo_reporte, sheet = "Detalle_Atrasos", append = TRUE)
+# write_ods(resumen_grua, path = archivo_reporte, sheet = "Resumen_Grua", append = TRUE)
+# write_ods(resumen_no_esta, path = archivo_reporte, sheet = "No_Esta", append = TRUE)
+# write_ods(resumen_fuego, path = archivo_reporte, sheet = "Fuego", append = TRUE)
+# write_ods(detalle_no_esta, path = archivo_reporte, sheet = "Detalle_no_esta", append = TRUE)
 
 
 
@@ -434,6 +611,7 @@ agregar_hoja_con_formato <- function(workbook, nombre_hoja, datos) {
 agregar_hoja_con_formato(wb, "Resumen_Atrasos", tabla_final)
 agregar_hoja_con_formato(wb, "Detalle_Atrasos", detalle_at)
 agregar_hoja_con_formato(wb, "Grua", resumen_grua)
+agregar_hoja_con_formato(wb, "Detalle no esta", detalle_no_esta)
 
 # 5. Guardar el archivo
 saveWorkbook(wb, "Reporte_Con_Formatosss.xlsx", overwrite = TRUE)
@@ -452,6 +630,7 @@ df_h3 <- resumen_grua
 df_h4 <- listado_grua_detalle
 df_h5 <- resumen_no_esta
 df_h6 <- resumen_fuego
+df_h7 <- detalle_no_esta
 
 # 2. Definir estilos (Tal cual te los pasaron)
 st_hdr <- createStyle(textDecoration = "bold", halign = "center", fgFill = "#DCE6F1", border = "TopBottomLeftRight")
@@ -500,6 +679,7 @@ write_df_with_styles(wb, "Resumen_Grua", df_h3)
 write_df_with_styles(wb, "Listado_Grua", df_h4)
 write_df_with_styles(wb, "No_Esta", df_h5)
 write_df_with_styles(wb, "Fuego", df_h6)
+write_df_with_styles(wb, "Detalle_no_esta", df_h7)
 
 # 6. Guardar con el nombre del día
 fecha_archivo <- format(Sys.time(), "%d-%m-%Y_%H%M")

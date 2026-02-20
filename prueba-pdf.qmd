@@ -1,0 +1,181 @@
+---
+title: "Reporte contenedores vaciados por turno (PDF)"
+format: 
+  pdf:
+    toc: false
+    number-sections: true
+    colorlinks: true
+geometry: margin=1cm
+header-includes:
+  - \usepackage{pdflscape}
+  - \newcommand{\blandscape}{\newgeometry{margin=1cm}\begin{landscape}}
+  - \newcommand{\elandscape}{\end{landscape}\restoregeometry}
+editor: source
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) # Limpiar ambiente para evitar conflictos con .RData
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Paquetes necesarios para PDF (estáticos)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+
+# Carga de datos
+prueba_adrian <- readRDS("datos_listos.rds")
+total_viajesporturnoydia <- readRDS("viajespordiayturno.rds")
+
+# Filtramos hasta ayer
+total_viajesporturnoydia <- total_viajesporturnoydia %>% 
+  filter(Fecha <= Sys.Date()-1)
+
+# Procesamiento de fechas
+prueba_adrian$Fecha <- as.Date(as.character(prueba_adrian$Fecha))
+
+# Definimos el orden correctos de los turnos para gráficas y tablas
+# Orden: 1) Matutino, 2) Vespertino, 3) Nocturno
+orden_turnos <- c("Matutino", "Vespertino", "Nocturno")
+
+prueba_adrian <- prueba_adrian %>%
+  mutate(Turno_levantado = factor(Turno_levantado, levels = orden_turnos))
+
+total_viajesporturnoydia <- total_viajesporturnoydia %>%
+  mutate(Turno_levantado = factor(Turno_levantado, levels = orden_turnos))
+
+# Agrupado para gráfico de vaciados
+df_agrupado <- prueba_adrian %>%
+  group_by(Fecha, Turno_levantado) %>%
+  summarise(Vaciados_Suma = sum(Vaciados, na.rm = TRUE), .groups = "drop") %>% 
+  filter(Fecha <= Sys.Date()-1)
+
+# Datos resumen para tabla
+datos_resumen <- prueba_adrian %>%
+  # Ya tenemos el factor ordenado desde arriba
+  group_by(Fecha, Turno_levantado) %>%
+  summarise(Total_Vaciados = sum(Vaciados, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Turno_levantado, values_from = Total_Vaciados, values_fill = 0) %>%
+  mutate(`Total general` = Matutino + Vespertino + Nocturno) %>%
+  arrange(Fecha) %>% 
+  filter(Fecha <= Sys.Date()-1)
+```
+
+\newpage
+# Resultados principales
+
+## Detalle de vaciados
+
+```{r}
+# Tabla estática con kable
+kable(datos_resumen, 
+      caption = "Detalle de vaciados por fecha y turno",
+      booktabs = TRUE,
+      align = "c") %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+\newpage
+\blandscape
+
+## Gráfico de Vaciados
+
+A continuación se muestra la suma de contenedores vaciados por turno y fecha.
+
+```{r fig.width=14, fig.height=9}
+# Definimos los colores exactos
+colores_turno <- c("Matutino" = "#FFFF00", 
+                   "Vespertino" = "#FFCC00", 
+                   "Nocturno" = "#4D4D4D")
+
+# Calculamos totales por día para etiquetas
+totales_por_dia <- df_agrupado %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Vaciados_Suma))
+
+# Usamos el orden natural (Matutino, Vespertino, Nocturno)
+# Y visualmente invertimos la pila para que Matutino (1) quede abajo si está saliendo arriba.
+ggplot(df_agrupado, aes(x = Fecha, y = Vaciados_Suma, fill = Turno_levantado)) +
+  geom_col(position = position_stack(reverse = TRUE), width = 0.8, color = "black", size = 0.2) +
+  scale_fill_manual(values = colores_turno) + 
+  labs(title = "Contenedores Vaciados por Turno",
+       x = NULL, # Quitamos etiqueta X redundante si hay fechas
+       y = "Cantidad",
+       fill = "Turno") +
+  theme_minimal(base_size = 16) + # Fuente base más grande
+  scale_x_date(date_labels = "%d/%m", date_breaks = "1 day") + # Formato día/mes
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + # Quitar espacio abajo
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.x = element_blank(), # Sin lineas verticales
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    plot.title = element_text(face = "bold", size = 20, hjust = 0.5), # Título centrado
+    axis.title.y = element_text(face = "italic")
+  ) +
+  # Etiquetas internas (solo si valor > 0 para limpiar)
+  geom_text(aes(label = ifelse(Vaciados_Suma > 0, Vaciados_Suma, "")), 
+            position = position_stack(vjust = 0.5), 
+            size = 4, color = "black", fontface = "bold") +
+  # Total encima de la barra
+  geom_text(data = totales_por_dia, aes(x = Fecha, y = Total, label = Total, fill = NULL),
+            vjust = -0.5, size = 5, fontface = "bold")
+```
+
+\elandscape
+
+\newpage
+# Datos camiones
+
+## Detalle de Camiones
+
+```{r}
+tabla_camiones <- total_viajesporturnoydia %>%
+  select(Fecha, Turno_levantado, Camiones) %>%
+  pivot_wider(names_from = Turno_levantado, values_from = Camiones, values_fill = 0) %>%
+  relocate(Fecha, Matutino, Vespertino, Nocturno) %>% # Forzamos orden columnas
+  mutate(Total = Matutino + Vespertino + Nocturno)
+
+kable(tabla_camiones, 
+      caption = "Detalle de Camiones por Turno",
+      booktabs = TRUE, 
+      align = "c") %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+\newpage
+\blandscape
+
+## Gráfico de Camiones
+
+```{r fig.width=14, fig.height=9}
+# Totales por día para camiones
+totales_camiones <- total_viajesporturnoydia %>%
+  group_by(Fecha) %>%
+  summarise(Total = sum(Camiones, na.rm = TRUE))
+
+ggplot(total_viajesporturnoydia, aes(x = Fecha, y = Camiones, fill = Turno_levantado)) +
+  geom_col(position = position_stack(reverse = TRUE), width = 0.8, color = "black", size = 0.2) +
+  scale_fill_manual(values = colores_turno) +
+  labs(title = "Cantidad de Camiones por Turno",
+       x = NULL,
+       y = "Camiones",
+       fill = "Turno") +
+  theme_minimal(base_size = 16) +
+  scale_x_date(date_labels = "%d/%m", date_breaks = "1 day") +
+  scale_y_continuous(breaks = scales::breaks_pretty(), expand = expansion(mult = c(0, 0.1))) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+    plot.title = element_text(face = "bold", size = 20, hjust = 0.5),
+    axis.title.y = element_text(face = "italic")
+  ) +
+  geom_text(data = totales_camiones, aes(x = Fecha, y = Total, label = Total, fill = NULL),
+            vjust = -0.5, size = 5, fontface = "bold")
+```
+
+\elandscape
